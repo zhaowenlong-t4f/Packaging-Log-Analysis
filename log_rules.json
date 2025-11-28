@@ -1,0 +1,224 @@
+﻿[
+  {
+    "id": "3",
+    "name": "C# 编译失败",
+    "regex": "error CS\\d{4}: (.*)",
+    "keywords": [
+      "error",
+      "CS"
+    ],
+    "solution": "**编译失败**\n\n修复 C# 语法错误。\n- 检查是否缺少分号。\n- 验证命名空间引用 (using)。\n- 如果刚升级了 Unity，检查 API 是否变更。",
+    "severity": "CRITICAL",
+    "weight": 100,
+    "createdAt": "2025-11-24 06:18:55",
+    "updatedAt": "2025-11-24 06:18:55"
+  },
+  {
+    "id": "2f696ec7-cd38-4709-909e-4f90f6a06fa4",
+    "name": "重复的 SpriteAtlas 名称（Duplicate atlas name）",
+    "regex": "Exception: Duplicate atlas name: ([^:]+):(?:\\s*[^\\s\\n]+\\.spriteatlas)*",
+    "keywords": [
+      "Exception",
+      "Duplicate atlas name",
+      "atlas",
+      "name"
+    ],
+    "solution": "**检测到重复的 SpriteAtlas 名称（Duplicate atlas name）**\n\nUnity 要求项目中所有 SpriteAtlas 的名称必须全局唯一，即使路径不同也不允许重名。\n\n**错误示例：**\n- Assets/X1/Res/UI/common/Control/Control.spriteatlas\n- Assets/X1/Res/UI/Control/Control.spriteatlas\n\n**此错误属于致命错误，会直接中止整个 Android/iOS 打包流程，导致最终 APK/AAB/IPA 生成失败或为 0KB。**\n\n**立即修复方案（任选其一）：**\n1. **推荐** 将其中一个 SpriteAtlas 重命名（如 Control → Control_Global 或 Control_UI）。\n2. 删除多余的那一份（通常是历史遗留或复制粘贴导致的重复文件夹）。\n3. 如果暂时无法判断哪个是正确的，可先把其中一个改名为 `Control.spriteatlas_disabled` 临时禁用。\n\n修改后提交代码，重新触发 Jenkins 打包即可通过。",
+    "severity": "CRITICAL",
+    "weight": 100,
+    "createdAt": "2025-11-24 06:18:55",
+    "updatedAt": "2025-11-24 06:18:55"
+  },
+  {
+    "id": "6bca9924-4f7e-42bf-9994-d8867aa1a53e",
+    "name": "构建目录被占用（E:/build/X1_work_1 busy）",
+    "regex": "^.+? busy, skip",
+    "keywords": [
+      "usy, skip"
+    ],
+    "solution": "**构建目录被占用导致跳过操作**\n\n打包目录可能被其他进程占用（如正在进行的构建任务、文件管理器或杀毒软件扫描），导致当前操作被跳过。\n\n**修复方案：**\n1. 检查该目录是否有正在运行的构建进程，结束相关任务（如Jenkins代理、Unity进程）。\n2. 关闭可能占用该目录的应用（如资源管理器窗口）。\n3. 若频繁出现，可在构建脚本中添加目录占用检测，自动重试或清理占用。\n4. 手动释放目录后，重新触发构建任务。",
+    "severity": "ERROR",
+    "weight": 100,
+    "createdAt": "2025-11-24 06:18:55",
+    "updatedAt": "2025-11-24 06:18:55"
+  },
+  {
+    "id": "5201eeb1-3063-40bf-915f-e5c086897272",
+    "name": "HideFlags.DontSave 资源被错误打进包",
+    "regex": "An asset is marked with HideFlags\\.DontSave but is included in the build:[\\s\\S]*?Asset:\\s*'(Assets/[^']+\\.asset)'[\\s\\S]*?Asset name:\\s*([^\\s\\r\\n]+)",
+    "keywords": [
+      "HideFlags.DontSave",
+      "included in the build",
+      "DontSave"
+    ],
+    "solution": "调整打包规则或者资源的m_ObjectHideFlags设置",
+    "severity": "CRITICAL",
+    "weight": 98,
+    "createdAt": "2025-11-24 06:18:55",
+    "updatedAt": "2025-11-24 06:24:01"
+  },
+  {
+    "id": "c477f93a-91c5-4c40-b399-3d189482196f",
+    "name": "Git index.lock 文件被占用（导致 checkout/pull 失败）",
+    "regex": "fatal: Unable to create '(.+?)\\.git/index\\.lock': File exists",
+    "keywords": [
+      "fatal",
+      "Unable to create",
+      ".git/index.lock",
+      "File exists"
+    ],
+    "solution": "**Git index.lock 文件被占用，通常为 Git 进程冲突或异常终止导致**\n\n当上一次 Git 操作被强制中断时，.git/index.lock 文件可能未被清理，导致后续所有 git 命令都无法执行。\n\n**立即修复方案：**\n1. **快速清理**：删除该工作目录中的 .git/index.lock 文件\n   - Windows PowerShell: `Remove-Item \".git/index.lock\" -Force`\n   - 或手动删除 `.git\\index.lock`\n2. **确保没有 Git 进程占用**：taskkill /F /IM git.exe\n3. **重试 Git 操作**：git pull / git checkout 等\n4. **Jenkins 脚本中的预防措施**：\n   在每次打包前执行 workspace 清理脚本，移除可能残留的 .git/index.lock\n\n**此错误会导致整个打包流程卡住，必须优先级较高修复。**",
+    "severity": "CRITICAL",
+    "weight": 50,
+    "createdAt": "2025-11-24 06:18:55",
+    "updatedAt": "2025-11-24 06:18:55"
+  },
+  {
+    "id": "260bc930-5d89-46e3-8536-dc8c94c93bec",
+    "name": "Git 无法删除被锁定的文件（导致 pull/merge 失败）",
+    "regex": "warning: failed to remove .*: .*",
+    "keywords": [
+      "failed to remove",
+      "Invalid argument"
+    ],
+    "solution": "**Git 无法删除 DLL，通常为 Windows 文件锁问题**\n该文件被进程占用（Unity/Wwise/杀毒软件），导致 git clean 和 git pull 无法继续。\n解决方案：\n1. 在打包机上结束占用进程：taskkill /F /IM Unity.exe；taskkill /F /IM Wwise.exe\n2. 确保 Jenkins 执行前无编辑器进程残留\n3. 将该 DLL 加入 .gitignore（如果为生成文件）\n4. 如仍失败，手动删除 workspace 中对应 DLL",
+    "severity": "CRITICAL",
+    "weight": 20,
+    "createdAt": "2025-11-24 06:18:55",
+    "updatedAt": "2025-11-24 06:18:55"
+  },
+  {
+    "id": "1",
+    "name": "Shader 编译错误",
+    "regex": "Shader error in '(.*?)': (.*)",
+    "keywords": [
+      "Shader",
+      "error"
+    ],
+    "solution": "**检测到 Shader 错误**\n\n通常由 HLSL/CGPROGRAM 代码块中的语法错误引起。\n1. 打开日志中提到的 Shader 文件。\n2. 检查完整日志中提供的具体行号。\n3. 验证目标平台的兼容性（如 Metal vs DX11）。",
+    "severity": "ERROR",
+    "weight": 10,
+    "createdAt": "2025-11-24 06:18:55",
+    "updatedAt": "2025-11-24 06:18:55"
+  },
+  {
+    "id": "88c8ab41-bd4c-45e8-8c18-6b76a9d3191d",
+    "name": "Git分支残留历史跟踪分支（dev_X1-xxx）",
+    "regex": "Your configuration specifies to merge with the ref 'refs/heads/dev_X1-[0-9]+' from the remote, but no such ref was fetched",
+    "keywords": [
+      "Your configuration specifies to merge with the ref",
+      "dev_X1-",
+      "no such ref was fetched"
+    ],
+    "solution": "本地git仓库仍跟踪已被删除的历史分支（如dev_X1-16182），会导致git pull失败或拉到错误代码。\n虽当前有强制reset脚本兜底，但极不稳定。\n修复方案：在所有Windows打包机执行：\n git checkout dev\ngit branch --unset-upstream\ngit remote prune origin\n或直接删本地残留分支：git branch -D dev_X1-*",
+    "severity": "ERROR",
+    "weight": 10,
+    "createdAt": "2025-11-24 06:18:55",
+    "updatedAt": "2025-11-24 06:18:55"
+  },
+  {
+    "id": "e41b1864-cc11-41e6-9668-6f97364c0700",
+    "name": "Requests依赖版本过旧警告",
+    "regex": "RequestsDependencyWarning: urllib3 \\(.*\\) or chardet \\(.*\\)/charset_normalizer \\(.*\\) doesn't match a supported version",
+    "keywords": [
+      "RequestsDependencyWarning",
+      "urllib3",
+      "chardet",
+      "charset_normalizer"
+    ],
+    "solution": "requests==2.26.0 已多年不维护，与新版urllib3/charsets不兼容，可能导致build.py发请求（如钉钉通知、回调）随机失败。\n升级requirements.txt：\nrequests>=2.32.3\nurllib3>=2.0.0\nchardet或者直接删（新版requests已不用chardet）",
+    "severity": "WARNING",
+    "weight": 10,
+    "createdAt": "2025-11-24 06:18:55",
+    "updatedAt": "2025-11-24 06:18:55"
+  },
+  {
+    "id": "2",
+    "name": "脚本引用丢失 (Missing Script)",
+    "regex": "The referenced script on this Behaviour \\(Game Object '(.*?)'\\) is missing!",
+    "keywords": [
+      "missing",
+      "Behaviour",
+      "script"
+    ],
+    "solution": "**脚本丢失**\n\n场景或预制体中的某个 GameObject 挂载了 'Missing Script' 组件。\n1. 根据名称定位 GameObject。\n2. 删除该丢失的组件或重新分配正确的脚本。\n3. 检查 meta 文件是否损坏。",
+    "severity": "WARNING",
+    "weight": 8,
+    "createdAt": "2025-11-24 06:18:55",
+    "updatedAt": "2025-11-24 06:18:55"
+  },
+  {
+    "id": "6",
+    "name": "构建过程失败",
+    "regex": "Build (failed|Failed) (.*)",
+    "keywords": [
+      "Build",
+      "failed",
+      "Failed"
+    ],
+    "solution": "**构建失败**\n\n构建流水线报告了失败状态。请向上滚动查看具体的编译错误或资源处理错误。",
+    "severity": "CRITICAL",
+    "weight": 5,
+    "createdAt": "2025-11-24 06:18:55",
+    "updatedAt": "2025-11-24 06:24:21"
+  },
+  {
+    "id": "4",
+    "name": "资源导入失败",
+    "regex": "Could not create asset from (.*?) file path: (.*)",
+    "keywords": [
+      "Could",
+      "not",
+      "create",
+      "asset"
+    ],
+    "solution": "**资源导入错误**\n\n源文件可能已损坏，或者 meta 文件不同步。\n1. 尝试右键\"Reimport\"该资源。\n2. 如果问题持续，尝试删除 `Library` 文件夹重建缓存。",
+    "severity": "ERROR",
+    "weight": 5,
+    "createdAt": "2025-11-24 06:18:55",
+    "updatedAt": "2025-11-24 06:18:55"
+  },
+  {
+    "id": "1e318617-a5c4-41c4-92a3-fbbb0cd4d712",
+    "name": "Wwise SoundBanks 完全缺失（iOS平台致命）",
+    "regex": "LogWwiseProjectDatabase Error: Could not find platform (iOS|Windows) in Generated Directory.*GeneratedSoundBanks/(iOS|Windows)",
+    "keywords": [
+      "Wwise",
+      "SoundBanks",
+      "GeneratedSoundBanks",
+      "Could not find platform"
+    ],
+    "solution": "Wwise SoundBank 完全没有生成，导致上传到Mac后的Xcode工程缺少所有音频资源，最终编译失败或生成无声包。\n立即修复方案：\n1. 在Windows打包机上打开Wwise项目，执行 Generate SoundBanks（勾选 Windows + iOS 平台）\n2. 或者在Unity Editor → Wwise Settings 中勾选「Generate SoundBanks on Build」并确保iOS平台被选中\n3. 最佳方案：改回Mac端完整构建流程（Unity+Xcode一条龙），彻底避免跨平台SoundBank生成失败问题\n此错误一旦出现，Mac端100%会失败，必须优先级最高修复。",
+    "severity": "WARNING",
+    "weight": 5,
+    "createdAt": "2025-11-24 06:18:55",
+    "updatedAt": "2025-11-24 06:24:57"
+  },
+  {
+    "id": "5",
+    "name": "通用异常 (Exception)",
+    "regex": "(.*Exception): (.*)",
+    "keywords": [
+      "Exception"
+    ],
+    "solution": "**检测到未处理的异常**\n\n这是一个通用的异常捕获。\n1. 查看堆栈跟踪以确定引发异常的具体代码行。\n2. 检查空引用 (NullReferenceException) 或数组越界。",
+    "severity": "ERROR",
+    "weight": 2,
+    "createdAt": "2025-11-24 06:18:55",
+    "updatedAt": "2025-11-24 06:18:55"
+  },
+  {
+    "id": "7",
+    "name": "通用失败 (Generic Failure)",
+    "regex": ".*(Failed|failed).*",
+    "keywords": [
+      "Failed",
+      "failed"
+    ],
+    "solution": "**检测到失败操作**\n\n日志行中包含了 'Failed' 关键字，但未匹配到特定规则。请检查上下文以获取详细信息。",
+    "severity": "ERROR",
+    "weight": 1,
+    "createdAt": "2025-11-24 06:18:55",
+    "updatedAt": "2025-11-24 06:18:55"
+  }
+]
