@@ -117,28 +117,34 @@ Unity 日志分析系统后端是一个高性能、高可靠的日志处理和�
 | 范畴 | 技术 | 版本 | 说明 |
 |------|------|------|------|
 | 运行时 | Node.js | ≥18 LTS | 异步 I/O，高性能 |
-| 框架 | Express.js | ≥4.18 | 轻量灵活，中间件丰富 |
+| 框架 | Express.js | ≥4.18 | 轻量灵活，极简 HTTP 服务器 |
 | 语言 | TypeScript | ≥4.5 | 类型安全，便于维护 |
-| 数据库 | PostgreSQL | ≥13 | 关系型，ACID 保证，JSON 支持 |
-| ORM | TypeORM | ≥0.3 | 类型安全，迁移管理 |
-| 缓存 | Redis | ≥6.0 | 高性能缓存，会话管理 |
-| 日志 | Winston | ≥3.8 | 结构化日志，多 transport |
-| 验证 | class-validator | ≥0.14 | DTO 验证，装饰器风格 |
-| 任务队列 | Bull/Redis | ≥4.0 | 异步任务处理 |
+| 数据库 | SQLite | ≥3.40 | 轻量级嵌入式数据库，无需独立部署 |
+| ORM | Prisma | ≥5.0 | 现代 ORM，简洁查询，自动迁移 |
+| 日志 | console/pino | ≥8.0 | 轻量结构化日志 |
+| 验证 | zod | ≥3.22 | 运行时模式验证，轻量级 |
 | 文件处理 | multer | ≥1.4 | 文件上传中间件 |
 | HTTP 客户端 | axios | ≥1.4 | URL 下载和外部 API 调用 |
-| 测试 | Jest + Supertest | 最新 | 单元测试和集成测试 |
+| 测试 | Vitest + Supertest | 最新 | 轻量快速的单元和集成测试 |
 
 ### 开发环境要求
 
 ```
 Node.js: 18.0+ LTS
 npm/pnpm: 最新稳定版
-PostgreSQL: 13.0+
-Redis: 6.0+
-Docker: 最新版（可选，用于本地开发）
+SQLite: 3.40+ (无需单独安装，npm 包自带)
+Docker: 最新版（可选，用于部署）
 操作系统: Windows 10+, macOS 10.15+, Linux (Ubuntu 20.04+)
 ```
+
+### 技术选择说明
+
+**为什么选择 SQLite + Prisma？**
+- **SQLite**：无需独立数据库服务器，文件型存储，部署更简单
+- **Prisma**：现代轻量的 ORM，自动类型生成，迁移简洁明了
+- **移除 Redis**：大多数场景下 SQLite 足以满足，减少部署复杂度
+- **简化验证**：用 Zod 替代 class-validator，更轻更灵活
+- **简化日志**：用 pino 或原生 console，够用即可
 
 ---
 
@@ -157,30 +163,36 @@ Docker: 最新版（可选，用于本地开发）
     ├────────────────────────────────────────────────────────┤
     │  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐  │
     │  │ 路由层       │  │ 中间件层     │  │ 控制器层    │  │
-    │  │ (Express)    │  │ (Auth等)     │  │ (业务逻辑)  │  │
+    │  │ (Express)    │  │ (简化验证等) │  │ (业务逻辑)  │  │
     │  └──────────────┘  └──────────────┘  └─────────────┘  │
     │                          ↓                              │
     │  ┌────────────────────────────────────────────────────┐│
     │  │          服务层 (Service)                          ││
     │  │  - LogService        - RuleService                ││
-    │  │  - AnalysisService   - CacheService              ││
+    │  │  - AnalysisService   - FileService               ││
     │  └────────────────────────────────────────────────────┘│
     │                          ↓                              │
     │  ┌────────────────────────────────────────────────────┐│
-    │  │          数据访问层 (Repository/DAO)              ││
-    │  │  - LogRepository     - RuleRepository            ││
-    │  │  - RuleHistoryRepo   - ErrorRepository           ││
+    │  │          数据访问层 (Prisma ORM)                  ││
+    │  │  - logModel     - ruleModel                       ││
+    │  │  - errorModel   - ruleHistoryModel               ││
     │  └────────────────────────────────────────────────────┘│
     │                          ↓                              │
     └────────────────────────┬─────────────────────────────┘
                              │
          ┌───────────────────┼───────────────────┐
-         ↓                   ↓                   ↓
-    ┌─────────┐         ┌─────────┐        ┌──────────┐
-    │PostgreSQL           Redis          File System
-    │ (业务数据)│ (缓存、会话) │ (临时日志)
-    └─────────┘         └─────────┘        └──────────┘
+         ↓                   ↓
+    ┌─────────┐         ┌──────────┐
+    │ SQLite  │         │File System
+    │(业务数据)│ (临时日志)
+    └─────────┘         └──────────┘
 ```
+
+**架构特点**：
+- **简洁**：去除 Redis 缓存层，SQLite 内置缓存足够
+- **易部署**：所有数据存储都在一个文件中，随处可用
+- **易维护**：中间件精简，没有繁重的配置
+- **高效**：Prisma 自动生成类型安全的查询代码
 
 ### 项目文件结构
 
@@ -189,66 +201,45 @@ src/
 ├── controllers/
 │   ├── logController.ts
 │   ├── ruleController.ts
-│   └── commonController.ts
+│   └── errorController.ts
 ├── services/
 │   ├── logService.ts
 │   ├── ruleService.ts
 │   ├── analysisService.ts
-│   ├── cacheService.ts
 │   └── fileService.ts
-├── repositories/
-│   ├── logRepository.ts
-│   ├── errorRepository.ts
-│   ├── ruleRepository.ts
-│   └── ruleHistoryRepository.ts
-├── entities/
-│   ├── Log.ts
-│   ├── Error.ts
-│   ├── Rule.ts
-│   ├── RuleHistory.ts
-│   └── ErrorOccurrence.ts
-├── dto/
-│   ├── request/
-│   │   ├── AnalyzeLogRequest.ts
-│   │   ├── CreateRuleRequest.ts
-│   │   └── ValidateRuleRequest.ts
-│   └── response/
-│       ├── AnalyzeLogResponse.ts
-│       ├── RuleListResponse.ts
-│       └── CommonResponse.ts
-├── middlewares/
+├── middleware/
 │   ├── errorHandler.ts
-│   ├── requestLogger.ts
-│   ├── validation.ts
-│   ├── authentication.ts
-│   └── rateLimit.ts
+│   ├── validate.ts
+│   └── fileUpload.ts
 ├── utils/
 │   ├── logParser.ts
 │   ├── regexMatcher.ts
 │   ├── fileDownloader.ts
-│   ├── validators.ts
-│   ├── formatters.ts
-│   └── logger.ts
+│   ├── logger.ts
+│   └── formatters.ts
+├── prisma/
+│   └── schema.prisma          (Prisma 数据库 schema)
+├── routes/
+│   ├── logs.ts
+│   ├── rules.ts
+│   └── index.ts
+├── types/
+│   ├── log.types.ts
+│   ├── rule.types.ts
+│   └── api.types.ts
 ├── config/
-│   ├── database.ts
-│   ├── redis.ts
 │   ├── constants.ts
 │   └── env.ts
-├── migrations/
-│   ├── 001_create_tables.ts
-│   ├── 002_add_indices.ts
-│   └── 003_initial_rules.ts
-├── routes/
-│   ├── logRoutes.ts
-│   ├── ruleRoutes.ts
-│   └── index.ts
-├── database/
-│   ├── connection.ts
-│   └── seeder.ts
 ├── app.ts
-├── server.ts
-└── index.ts
+└── server.ts
 ```
+
+**与原架构的差异**：
+- 移除 repositories 层，Prisma 直接作为 ORM 在 services 中使用
+- 移除 entities 层，用 Prisma schema 和自动生成的类型代替
+- 简化 middleware，只保留必要的（错误处理、验证、文件上传）
+- 移除 dto 复杂的装饰器验证，改用 Zod 简单方案
+- 移除 migrations 文件夹，Prisma 管理迁移
 
 ---
 
@@ -257,256 +248,243 @@ src/
 ### ER 图
 
 ```
-┌─────────────────┐
-│ logs            │
-├─────────────────┤
-│ id (PK)         │
-│ file_name       │
-│ upload_type     │
-│ file_size       │
-│ total_lines     │
-│ raw_content     │
-│ created_at      │
-│ updated_at      │
-└────────┬────────┘
+┌──────────────────┐
+│ logs             │
+├──────────────────┤
+│ id (PK)          │
+│ fileName         │
+│ uploadType       │
+│ fileSize         │
+│ totalLines       │
+│ rawContent       │
+│ createdAt        │
+└────────┬─────────┘
          │ 1:N
          ↓
 ┌─────────────────────────────┐
 │ errors                      │
 ├─────────────────────────────┤
 │ id (PK)                     │
-│ log_id (FK)                 │
-│ matched_rule_id (FK)        │
-│ error_type                  │
+│ logId (FK)                  │
+│ matchedRuleId (FK)          │
+│ errorType                   │
 │ severity                    │
 │ title                       │
 │ description                 │
-│ occurrence_count            │
-│ first_occurrence_line       │
-│ last_occurrence_line        │
-│ created_at                  │
-│ updated_at                  │
+│ occurrenceCount             │
+│ firstOccurrenceLine         │
+│ lastOccurrenceLine          │
+│ createdAt                   │
 └────────┬────────────────────┘
          │ 1:N
          ↓
 ┌──────────────────────────────┐
-│ error_occurrences           │
+│ errorOccurrences            │
 ├──────────────────────────────┤
 │ id (PK)                      │
-│ error_id (FK)                │
-│ log_id (FK)                  │
-│ line_number                  │
-│ raw_line                     │
-│ context_before (JSON)        │
-│ context_after (JSON)         │
+│ errorId (FK)                 │
+│ logId (FK)                   │
+│ lineNumber                   │
+│ rawLine                      │
+│ contextBefore (JSON)         │
+│ contextAfter (JSON)          │
 │ sequence                     │
 └──────────────────────────────┘
 
 ┌──────────────────────────────┐
 │ rules                        │
 ├──────────────────────────────┤
-│ id (PK, UUID)                │
+│ id (PK)                      │
 │ name                         │
 │ regex                        │
-│ keywords (JSON array)        │
+│ keywords (JSON)              │
 │ solution                     │
 │ severity                     │
 │ weight                       │
-│ categories (JSON array)      │
+│ categories (JSON)            │
 │ enabled                      │
-│ created_at                   │
-│ updated_at                   │
-│ version_number               │
+│ version                      │
+│ createdAt                    │
+│ updatedAt                    │
 └────────┬───────────────────┘
          │ 1:N
          ↓
 ┌──────────────────────────────┐
-│ rule_history                 │
+│ ruleHistories                │
 ├──────────────────────────────┤
 │ id (PK)                      │
-│ rule_id (FK)                 │
+│ ruleId (FK)                  │
 │ version                      │
 │ name                         │
 │ regex                        │
-│ keywords (JSON array)        │
+│ keywords (JSON)              │
 │ solution                     │
 │ severity                     │
 │ weight                       │
-│ categories (JSON array)      │
-│ change_log                   │
-│ changed_by                   │
-│ changed_at                   │
+│ categories (JSON)            │
+│ changeLog                    │
+│ changedAt                    │
 └──────────────────────────────┘
 ```
 
-### 表结构详细定义
+### Prisma Schema 定义
 
-#### 表 1: logs（日志表）
+```prisma
+// prisma/schema.prisma
 
-```sql
-CREATE TABLE logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  file_name VARCHAR(255) NOT NULL,
-  upload_type VARCHAR(20) NOT NULL, -- 'url', 'file', 'text'
-  file_size BIGINT,
-  total_lines INTEGER,
-  raw_content TEXT,
-  metadata JSONB, -- 存储额外的上传元数据
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
 
-CREATE INDEX idx_logs_created_at ON logs(created_at DESC);
-CREATE INDEX idx_logs_file_name ON logs(file_name);
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 日志表
+model Log {
+  id             String    @id @default(cuid())
+  fileName       String
+  uploadType     String    // 'url', 'file', 'text'
+  fileSize       BigInt?
+  totalLines     Int?
+  rawContent     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  errors         Error[]
+  errorOccurrences ErrorOccurrence[]
+
+  @@index([createdAt])
+  @@index([fileName])
+}
+
+// 错误表
+model Error {
+  id                 String    @id @default(cuid())
+  logId              String
+  log                Log       @relation(fields: [logId], references: [id], onDelete: Cascade)
+  
+  matchedRuleId      String?
+  matchedRule        Rule?     @relation(fields: [matchedRuleId], references: [id], onDelete: SetNull)
+  
+  errorType          String
+  severity           String    // 'CRITICAL', 'ERROR', 'WARNING', 'INFO'
+  title              String
+  description        String?
+  solution           String?
+  
+  occurrenceCount    Int       @default(1)
+  firstOccurrenceLine Int?
+  lastOccurrenceLine  Int?
+  
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  
+  occurrences        ErrorOccurrence[]
+
+  @@index([logId])
+  @@index([severity])
+  @@index([matchedRuleId])
+}
+
+// 错误出现表
+model ErrorOccurrence {
+  id              String    @id @default(cuid())
+  errorId         String
+  error           Error     @relation(fields: [errorId], references: [id], onDelete: Cascade)
+  
+  logId           String
+  log             Log       @relation(fields: [logId], references: [id], onDelete: Cascade)
+  
+  lineNumber      Int
+  rawLine         String
+  contextBefore   String?   // JSON 数组序列化为 string
+  contextAfter    String?
+  sequence        Int?
+  
+  createdAt       DateTime  @default(now())
+
+  @@index([errorId])
+  @@index([lineNumber])
+}
+
+// 规则表
+model Rule {
+  id              String    @id @default(cuid())
+  name            String    @unique
+  regex           String
+  keywords        String    // JSON 数组序列化为 string
+  solution        String?
+  severity        String    @default("ERROR")
+  weight          Int       @default(50)
+  categories      String?   // JSON 数组序列化为 string
+  enabled         Boolean   @default(true)
+  version         Int       @default(1)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  errors          Error[]
+  histories       RuleHistory[]
+
+  @@index([enabled])
+  @@index([severity])
+  @@index([updatedAt])
+}
+
+// 规则历史表
+model RuleHistory {
+  id              String    @id @default(cuid())
+  ruleId          String
+  rule            Rule      @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  
+  version         Int
+  name            String
+  regex           String
+  keywords        String    // JSON 数组序列化为 string
+  solution        String?
+  severity        String
+  weight          Int
+  categories      String?   // JSON 数组序列化为 string
+  changeLog       String?
+  
+  changedAt       DateTime  @default(now())
+
+  @@unique([ruleId, version])
+  @@index([ruleId])
+  @@index([changedAt])
+}
 ```
 
-**字段说明**：
-- `id`: 日志唯一标识（UUID）
-- `file_name`: 原始文件名
-- `upload_type`: 上传方式（url|file|text）
-- `file_size`: 文件大小（字节）
-- `total_lines`: 日志总行数
-- `raw_content`: 原始日志内容（TEXT，超大内容可独立存储）
-- `metadata`: JSON 格式的元数据（项目名、版本号等）
-- `created_at`, `updated_at`: 时间戳
+### 配置说明
 
-#### 表 2: errors（错误表）
+**SQLite 选择的优势**：
+- 无需独立服务，文件型存储（`prisma.db`）
+- 完整 ACID 支持，足以处理分析数据
+- Prisma 自动处理迁移，非常简洁
+- 开发、测试、部署都很方便
 
-```sql
-CREATE TABLE errors (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  log_id UUID NOT NULL REFERENCES logs(id) ON DELETE CASCADE,
-  matched_rule_id UUID REFERENCES rules(id) ON DELETE SET NULL,
-  error_type VARCHAR(100) NOT NULL,
-  severity VARCHAR(20) NOT NULL, -- 'CRITICAL', 'ERROR', 'WARNING', 'INFO'
-  title VARCHAR(255) NOT NULL,
-  description TEXT,
-  solution TEXT,
-  occurrence_count INTEGER DEFAULT 1,
-  first_occurrence_line INTEGER,
-  last_occurrence_line INTEGER,
-  weight INTEGER DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+**JSON 字段处理**：
+- SQLite 不原生支持 JSON 类型，存储为 TEXT
+- 在应用层用 `JSON.stringify()` 和 `JSON.parse()` 处理
+- Prisma 可配置自定义序列化器简化这一过程
 
-CREATE INDEX idx_errors_log_id ON errors(log_id);
-CREATE INDEX idx_errors_severity ON errors(severity);
-CREATE INDEX idx_errors_rule_id ON errors(matched_rule_id);
-CREATE INDEX idx_errors_created_at ON errors(created_at DESC);
+**迁移**：
+```bash
+# 初始化 Prisma
+npx prisma init
+
+# 生成迁移
+npx prisma migrate dev --name init
+
+# 应用迁移
+npx prisma migrate deploy
+
+# 查看数据库
+npx prisma studio
 ```
 
-**字段说明**：
-- `log_id`: 关联的日志 ID
-- `matched_rule_id`: 匹配的规则 ID
-- `error_type`: 错误分类（编译错误、Git 错误等）
-- `severity`: 严重程度
-- `title`: 错误标题
-- `description`: 错误详细描述
-- `solution`: 解决方案（Markdown）
-- `occurrence_count`: 该错误出现的次数（合并后）
-- `first_occurrence_line`, `last_occurrence_line`: 首尾出现行号
-- `weight`: 权重（用于排序）
-
-#### 表 3: error_occurrences（错误出现次数表）
-
-```sql
-CREATE TABLE error_occurrences (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  error_id UUID NOT NULL REFERENCES errors(id) ON DELETE CASCADE,
-  log_id UUID NOT NULL REFERENCES logs(id) ON DELETE CASCADE,
-  line_number INTEGER NOT NULL,
-  raw_line TEXT NOT NULL,
-  context_before JSONB, -- ["line1", "line2", ...]
-  context_after JSONB,
-  sequence INTEGER, -- 出现序号
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_error_occurrences_error_id ON error_occurrences(error_id);
-CREATE INDEX idx_error_occurrences_line_number ON error_occurrences(line_number);
-```
-
-**字段说明**：
-- `error_id`: 关联的错误 ID
-- `line_number`: 日志中的行号
-- `raw_line`: 原始日志行
-- `context_before`, `context_after`: 上下文行（JSON 数组）
-- `sequence`: 该错误的第几次出现
-
-#### 表 4: rules（规则表）
-
-```sql
-CREATE TABLE rules (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(255) NOT NULL UNIQUE,
-  regex TEXT NOT NULL,
-  keywords JSONB NOT NULL, -- JSON array: ["keyword1", "keyword2", ...]
-  solution TEXT,
-  severity VARCHAR(20) NOT NULL DEFAULT 'ERROR',
-  weight INTEGER NOT NULL DEFAULT 50,
-  categories JSONB, -- JSON array: ["category1", "category2", ...]
-  enabled BOOLEAN DEFAULT true,
-  version_number INTEGER DEFAULT 1,
-  usage_count INTEGER DEFAULT 0,
-  last_match_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  created_by VARCHAR(255),
-  updated_by VARCHAR(255)
-);
-
-CREATE INDEX idx_rules_enabled ON rules(enabled);
-CREATE INDEX idx_rules_severity ON rules(severity);
-CREATE INDEX idx_rules_keywords ON rules USING GIN(keywords);
-CREATE INDEX idx_rules_updated_at ON rules(updated_at DESC);
-```
-
-**字段说明**：
-- `id`: 规则唯一标识
-- `name`: 规则名称（唯一）
-- `regex`: 正则表达式
-- `keywords`: 初筛关键词（JSON 数组）
-- `solution`: 解决方案
-- `severity`: 严重程度
-- `weight`: 权重
-- `categories`: 分类标签（JSON 数组）
-- `enabled`: 是否启用
-- `version_number`: 当前版本号
-- `usage_count`: 使用计数
-- `last_match_at`: 最后一次匹配时间
-
-#### 表 5: rule_history（规则历史表）
-
-```sql
-CREATE TABLE rule_history (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  rule_id UUID NOT NULL REFERENCES rules(id) ON DELETE CASCADE,
-  version INTEGER NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  regex TEXT NOT NULL,
-  keywords JSONB NOT NULL,
-  solution TEXT,
-  severity VARCHAR(20) NOT NULL,
-  weight INTEGER NOT NULL,
-  categories JSONB,
-  change_log TEXT,
-  changed_by VARCHAR(255),
-  changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(rule_id, version)
-);
-
-CREATE INDEX idx_rule_history_rule_id ON rule_history(rule_id);
-CREATE INDEX idx_rule_history_changed_at ON rule_history(changed_at DESC);
-```
-
-**字段说明**：
-- `rule_id`: 关联的规则 ID
-- `version`: 版本号
-- `change_log`: 修改说明
-- `changed_by`: 修改人
-- `changed_at`: 修改时间
-- 其他字段同 rules 表
 
 ---
 
@@ -778,7 +756,7 @@ function extractContext(
 - 文件大小限制：500MB
 - 分批处理日志行（每 1000 行处理一次）
 - 计算处理耗时
-- 异步处理（可选，用 Bull/Redis）
+- 异步处理（可选，用流式处理）
 
 **错误响应**：
 
@@ -847,8 +825,8 @@ pageNo=1&pageSize=20&sortBy=severity&sortOrder=desc&searchKeyword=&severityFilte
 ```
 
 **实现要点**：
-- 从数据库查询，使用 Redis 缓存
-- 支持分页（limit + offset）
+- 从数据库查询，使用内存缓存
+- 支持分页（skip + take）
 - 支持排序和筛选
 - 全文搜索（题目、描述、关键词）
 
@@ -1324,95 +1302,100 @@ pageSize=10
 
 ## 数据验证规范
 
-### 请求验证（后端）
+### 请求验证（后端 - 使用 Zod）
 
-#### DTO 验证（使用 class-validator）
-
-```typescript
-// src/dto/request/CreateRuleRequest.ts
-import { IsString, IsArray, IsNumber, IsEnum, Min, Max, Matches } from 'class-validator';
-
-export class CreateRuleRequest {
-  @IsString()
-  @MinLength(2)
-  @MaxLength(100)
-  name: string;
-
-  @IsString()
-  @MinLength(1)
-  regex: string; // 自定义验证器检查正则表达式有效性
-
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(50)
-  @IsString({ each: true })
-  keywords: string[];
-
-  @IsEnum(['CRITICAL', 'ERROR', 'WARNING', 'INFO'])
-  severity: 'CRITICAL' | 'ERROR' | 'WARNING' | 'INFO';
-
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  weight: number;
-
-  @IsString()
-  @MaxLength(5000)
-  @IsOptional()
-  solution?: string;
-
-  @IsArray()
-  @IsOptional()
-  @IsString({ each: true })
-  categories?: string[];
-}
-```
-
-#### 自定义验证器
+#### Schema 定义
 
 ```typescript
-// src/utils/validators.ts
-export function validateRegex(regex: string): { valid: boolean; error?: string } {
-  try {
-    new RegExp(regex);
-    return { valid: true };
-  } catch (error) {
-    return {
-      valid: false,
-      error: `Invalid regex: ${error.message}`
-    };
-  }
-}
+// src/schemas/rule.schemas.ts
+import { z } from 'zod';
 
-export async function validateRuleNameUnique(name: string, excludeId?: string) {
-  const existingRule = await ruleRepository.findOne({
-    where: { name },
-    ...(excludeId && { where: { id: Not(excludeId) } })
-  });
-  return !existingRule;
-}
-```
-
-### 错误验证响应
-
-```json
-{
-  "code": 422,
-  "message": "Validation failed",
-  "data": {
-    "errors": [
-      {
-        "field": "regex",
-        "message": "Invalid regular expression syntax: unterminated character class"
-      },
-      {
-        "field": "keywords",
-        "message": "Keywords array cannot be empty"
+export const createRuleSchema = z.object({
+  name: z.string()
+    .min(2, '规则名称至少 2 个字符')
+    .max(100, '规则名称最多 100 个字符'),
+  
+  regex: z.string()
+    .min(1, '正则表达式不能为空')
+    .refine((val) => {
+      try {
+        new RegExp(val);
+        return true;
+      } catch {
+        return false;
       }
-    ]
-  }
+    }, '无效的正则表达式'),
+  
+  keywords: z.array(z.string())
+    .min(1, '至少需要 1 个关键词')
+    .max(50, '最多 50 个关键词'),
+  
+  severity: z.enum(['CRITICAL', 'ERROR', 'WARNING', 'INFO'])
+    .default('ERROR'),
+  
+  weight: z.number()
+    .int()
+    .min(0, '权重最小为 0')
+    .max(100, '权重最大为 100')
+    .default(50),
+  
+  solution: z.string().max(5000, '解决方案最多 5000 字符').optional(),
+  
+  categories: z.array(z.string()).max(10, '最多 10 个分类').optional(),
+});
+
+export const updateRuleSchema = createRuleSchema.partial();
+
+export type CreateRuleInput = z.infer<typeof createRuleSchema>;
+export type UpdateRuleInput = z.infer<typeof updateRuleSchema>;
+```
+
+#### 中间件集成
+
+```typescript
+// src/middleware/validate.ts
+import { Request, Response, NextFunction } from 'express';
+import { ZodSchema } from 'zod';
+
+export function validate(schema: ZodSchema) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const validated = schema.parse(req.body);
+      req.body = validated;
+      next();
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(422).json({
+          code: 422,
+          message: 'Validation failed',
+          data: {
+            errors: error.errors.map(e => ({
+              field: e.path.join('.'),
+              message: e.message
+            }))
+          }
+        });
+      }
+      next(error);
+    }
+  };
 }
 ```
+
+#### 使用示例
+
+```typescript
+// src/routes/rules.ts
+router.post('/rules', validate(createRuleSchema), ruleController.create);
+router.put('/rules/:id', validate(updateRuleSchema), ruleController.update);
+```
+
+### 验证特点
+
+- **轻量级**：Zod 库很小，无依赖
+- **类型安全**：自动推导 TypeScript 类型
+- **易于扩展**：自定义验证规则简洁明了
+- **清晰错误**：错误信息详细可读
 
 ---
 
@@ -1481,42 +1464,55 @@ app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
 
 ## 部署与扩展
 
-### 部署架构
+### 部署架构（轻量级）
 
 ```
-┌─────────────────────────────────────────┐
-│         Nginx 反向代理                   │
-│    (负载均衡、SSL/TLS)                  │
-└────────────┬────────────────────────────┘
+┌──────────────────────────────┐
+│    Nginx 反向代理            │
+│  (可选，用于 HTTPS/负载均衡)  │
+└────────────┬─────────────────┘
              │
-      ┌──────┴──────┐
-      ↓             ↓
-   ┌─────┐       ┌─────┐
-   │ API │       │ API │  (Express 实例)
-   │  1  │       │  2  │  (水平扩展)
-   └─────┘       └─────┘
-      │             │
-      └──────┬──────┘
+             ↓
+      ┌─────────────┐
+      │ Express 应用 │  (Node.js)
+      │ + SQLite    │  (内置数据库)
+      └─────────────┘
+             │
+        (本地文件)
              ↓
      ┌──────────────┐
-     │ PostgreSQL   │  (主数据库)
-     │ (Primary)    │
-     └──────────────┘
-             │
-     (异步复制)
-             ↓
-     ┌──────────────┐
-     │ PostgreSQL   │  (只读副本)
-     │ (Replica)    │
+     │ app.db       │  (SQLite 文件)
+     │ (业务数据)    │
      └──────────────┘
 
      ┌──────────────┐
-     │ Redis 集群    │  (缓存和消息队列)
-     │ (Cluster)    │
+     │ /tmp 或其他   │
+     │ (临时日志)    │
      └──────────────┘
 ```
 
-### 容器化部署（Docker）
+**特点**：
+- 单一可执行文件，无需额外服务
+- SQLite 文件可备份、迁移、版本控制
+- 生产环境可选 Nginx 做反向代理
+- 资源占用最少
+
+### 本地开发部署
+
+```bash
+# 1. 安装依赖
+npm install
+
+# 2. 初始化数据库
+npx prisma migrate dev --name init
+
+# 3. 启动开发服务器
+npm run dev
+
+# 访问 http://localhost:3000/api
+```
+
+### 生产部署（Docker）
 
 ```dockerfile
 # Dockerfile
@@ -1524,18 +1520,28 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# 安装依赖
 COPY package*.json ./
 RUN npm ci --only=production
 
+# 生成 Prisma 客户端
+COPY prisma ./prisma
+RUN npx prisma generate
+
+# 复制应用代码
 COPY dist ./dist
+
+# 创建数据库目录（SQLite 文件存储）
+RUN mkdir -p /app/data
 
 EXPOSE 3000
 
-CMD ["node", "dist/index.js"]
+# 启动应用
+CMD ["node", "dist/server.js"]
 ```
 
 ```yaml
-# docker-compose.yml
+# docker-compose.yml（简化版）
 version: '3.8'
 services:
   api:
@@ -1543,252 +1549,194 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://user:pass@postgres:5432/logdb
-      REDIS_URL: redis://redis:6379
-    depends_on:
-      - postgres
-      - redis
-
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: logdb
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pass
+      NODE_ENV: production
+      DATABASE_URL: "file:./data/app.db"
+      LOG_LEVEL: info
     volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redisdata:/data
-
-volumes:
-  pgdata:
-  redisdata:
+      - ./data:/app/data  # 持久化 SQLite 数据库
+      - ./logs:/app/logs  # 持久化应用日志
+    restart: unless-stopped
 ```
 
-### 性能优化
+### 环境配置
 
-#### 1. 数据库优化
-
-```sql
--- 索引优化
-CREATE INDEX idx_rules_enabled_severity ON rules(enabled, severity);
-CREATE INDEX idx_errors_log_id_severity ON errors(log_id, severity);
-CREATE INDEX idx_error_occurrences_error_id_line ON error_occurrences(error_id, line_number);
-
--- 查询优化（使用 EXPLAIN ANALYZE）
-EXPLAIN ANALYZE
-SELECT * FROM errors
-WHERE log_id = 'xxx'
-ORDER BY severity, weight DESC
-LIMIT 20;
+```bash
+# .env
+NODE_ENV=production
+DATABASE_URL=file:./data/app.db
+PORT=3000
+LOG_LEVEL=info
+MAX_LOG_SIZE=524288000  # 500MB
+MAX_UPLOAD_SIZE=524288000
+TEMP_DIR=/app/data/temp
 ```
 
-#### 2. 缓存策略
+### 性能优化（轻量化）
+
+#### 1. SQLite 查询优化
 
 ```typescript
-// src/services/cacheService.ts
-export class CacheService {
-  private redis: Redis;
+// src/services/ruleService.ts
+export async function getRuleList(params: QueryParams) {
+  // 使用 Prisma 的查询优化
+  return prisma.rule.findMany({
+    where: {
+      enabled: true,
+      severity: params.severity
+    },
+    skip: (params.pageNo - 1) * params.pageSize,
+    take: params.pageSize,
+    orderBy: { updatedAt: 'desc' }
+  });
+}
+```
 
-  async getRuleList(params: QueryParams): Promise<Rule[] | null> {
-    const key = `rules:list:${JSON.stringify(params)}`;
-    const cached = await this.redis.get(key);
-    if (cached) return JSON.parse(cached);
-    return null;
+#### 2. 简单内存缓存（无需 Redis）
+
+```typescript
+// src/utils/cache.ts
+class SimpleCache {
+  private cache = new Map<string, { data: any; expiry: number }>();
+
+  set(key: string, value: any, ttlSeconds: number = 300) {
+    this.cache.set(key, {
+      data: value,
+      expiry: Date.now() + ttlSeconds * 1000
+    });
   }
 
-  async setRuleList(params: QueryParams, rules: Rule[]): Promise<void> {
-    const key = `rules:list:${JSON.stringify(params)}`;
-    await this.redis.setex(key, 300, JSON.stringify(rules)); // 5 分钟过期
+  get(key: string) {
+    const item = this.cache.get(key);
+    if (!item) return null;
+    if (Date.now() > item.expiry) {
+      this.cache.delete(key);
+      return null;
+    }
+    return item.data;
   }
 
-  async invalidateRuleCache(): Promise<void> {
-    const keys = await this.redis.keys('rules:*');
-    if (keys.length > 0) await this.redis.del(...keys);
+  clear() {
+    this.cache.clear();
+  }
+}
+
+export const cache = new SimpleCache();
+```
+
+#### 3. 流式处理大文件
+
+```typescript
+// src/services/logService.ts
+import { createReadStream } from 'fs';
+
+export async function processLargeLogFile(filePath: string) {
+  const stream = createReadStream(filePath, { 
+    encoding: 'utf8',
+    highWaterMark: 64 * 1024  // 64KB 缓冲
+  });
+
+  for await (const chunk of stream) {
+    const lines = chunk.split('\n');
+    // 处理每一行
+    await processLogLines(lines);
   }
 }
 ```
 
-#### 3. 异步任务处理
+### 数据备份与恢复
 
-```typescript
-// 大文件分析使用队列
-import Bull from 'bull';
+```bash
+# 备份 SQLite 数据库
+cp ./data/app.db ./backups/app-$(date +%Y%m%d-%H%M%S).db
 
-const analyzeQueue = new Bull('log-analysis', {
-  redis: { host: '127.0.0.1', port: 6379 }
-});
+# 从备份恢复
+cp ./backups/app-20251201-100000.db ./data/app.db
 
-analyzeQueue.process(async (job) => {
-  const { logId, content } = job.data;
-  // 长时间的分析任务
-  const result = await analyzeLog(content);
-  return result;
-});
-
-// 在 API 中添加任务
-app.post('/logs/analyze-async', async (req, res) => {
-  const job = await analyzeQueue.add(req.body, {
-    attempts: 3,
-    backoff: 'exponential',
-    delay: 1000
-  });
-  res.json({ jobId: job.id });
-});
+# 或使用 SQLite 内置命令
+sqlite3 ./data/app.db ".backup './backups/app.db'"
 ```
 
-#### 4. 连接池管理
+### 生产建议
+
+1. **监控和日志**：使用 pino 记录结构化日志
+2. **错误追踪**：集成 Sentry（可选）
+3. **定期备份**：定时备份 SQLite 文件到安全存储
+4. **容量规划**：监控 SQLite 文件大小，定期清理旧数据
+5. **升级**：蓝绿部署或灰度更新，保持向下兼容
 
 ```typescript
-// src/config/database.ts
-export const AppDataSource = new DataSource({
-  type: 'postgres',
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT || '5432'),
-  username: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  synchronize: false,
-  logging: false,
-  entities: [Log, Error, Rule, RuleHistory],
-  migrations: ['src/migrations/*.ts'],
-  subscribers: [],
-  poolSize: 10,        // 最大连接数
-  maxQueryExecutionTime: 10000, // 查询超时
-  cache: {
-    type: 'redis',
-    options: {
-      host: process.env.REDIS_HOST,
-      port: parseInt(process.env.REDIS_PORT || '6379')
+// 大文件分析使用流式处理而不是队列
+export async function analyzeLargeLog(filePath: string) {
+  const stream = createReadStream(filePath, { 
+    encoding: 'utf8',
+    highWaterMark: 64 * 1024
+  });
+
+  let lineNumber = 0;
+  const errors: Error[] = [];
+
+  for await (const chunk of stream) {
+    const lines = chunk.split('\n');
+    for (const line of lines) {
+      lineNumber++;
+      const matched = matchLine(line);
+      if (matched) errors.push(matched);
     }
   }
-});
-```
 
-### 可扩展性设计
-
-#### 1. 插件系统（规则匹配扩展）
-
-```typescript
-// 支持自定义匹配器
-export interface IMatcher {
-  match(line: string): Match[];
-  getName(): string;
+  return errors;
 }
-
-export class RegexMatcher implements IMatcher {
-  constructor(private regex: RegExp) {}
-  
-  match(line: string): Match[] {
-    const m = this.regex.exec(line);
-    return m ? [{ matched: true, text: m[0] }] : [];
-  }
-  
-  getName(): string {
-    return 'regex';
-  }
-}
-
-// 在服务中注册和使用
-const matchers: IMatcher[] = [
-  new RegexMatcher(rule.regex),
-  new CustomPatternMatcher(rule.customPattern)
-];
-```
-
-#### 2. 微服务架构（未来）
-
-```
-当前：单体应用
-未来可拆分为：
-- API 服务 (Express)
-- 分析服务 (独立的 Node 工作进程)
-- 规则服务 (独立服务)
-- 缓存和消息队列 (Redis)
-
-通过消息队列（RabbitMQ/Kafka）进行通信
 ```
 
 ---
 
 ## 附录
 
-### A. 环境配置示例
+### A. 简化环境配置
 
 ```bash
 # .env.example
-# 数据库
-DATABASE_URL=postgresql://user:password@localhost:5432/logdb
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=user
-DB_PASSWORD=password
-DB_NAME=logdb
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-
-# 服务器
+# 应用
 NODE_ENV=development
 PORT=3000
-API_VERSION=v1
+
+# 数据库
+DATABASE_URL=file:./data/app.db
 
 # 文件上传
-MAX_FILE_SIZE=524288000 # 500MB
-UPLOAD_TEMP_DIR=/tmp/log-uploads
+MAX_LOG_SIZE=524288000  # 500MB
+TEMP_DIR=./data/temp
 
 # 日志
 LOG_LEVEL=info
-LOG_FILE=/var/log/app.log
-
-# 性能
-DB_POOL_SIZE=10
-DB_QUERY_TIMEOUT=10000
-REGEX_TIMEOUT=1000
 ```
 
-### B. 初始化脚本
+### B. 快速启动脚本
 
 ```bash
-# setup.sh
 #!/bin/bash
-
 # 安装依赖
 npm install
 
-# 创建数据库
-createdb logdb
+# 初始化数据库
+npx prisma migrate dev --name init
 
-# 运行迁移
-npm run typeorm migration:run
+# 构建
+npm run build
 
-# 加载初始规则
-npm run seed:rules
-
-# 启动服务
+# 启动
 npm start
 ```
 
-### C. 监控指标
+### C. 关键目标指标
 
-推荐监控的关键指标：
-- API 响应时间（P50、P95、P99）
-- 数据库查询耗时
-- 缓存命中率
-- 错误率
-- 内存使用率
-- CPU 使用率
-- 磁盘 I/O
-
-使用工具：Prometheus + Grafana，或云厂商的监控服务
+- **响应时间**: API P95 ≤ 200ms
+- **吞吐量**: ≥ 100 req/s
+- **错误率**: < 0.5%
+- **可用性**: 99%+
 
 ---
 
-**文档版本**: 1.0  
-**最后更新**: 2025-11-28  
-**维护者**: Backend Team
+**文档版本**: 2.0（简化版）  
+**最后更新**: 2025-12-01  
+**变更**: 从 PostgreSQL + Redis + TypeORM 改为 SQLite + Prisma 轻量级方案
