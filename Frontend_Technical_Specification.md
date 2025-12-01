@@ -194,7 +194,7 @@ npm/pnpm: 最新稳定版
 ### 项目文件结构
 
 ```
-src/
+frontend/src/
 ├── components/
 │   ├── LogAnalysis/
 │   │   ├── UploadArea.tsx

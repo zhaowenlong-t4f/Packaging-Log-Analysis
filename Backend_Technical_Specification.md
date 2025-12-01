@@ -197,7 +197,7 @@ Docker: 最新版（可选，用于部署）
 ### 项目文件结构
 
 ```
-src/
+backend/src/
 ├── controllers/
 │   ├── logController.ts
 │   ├── ruleController.ts
