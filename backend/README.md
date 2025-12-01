@@ -221,16 +221,6 @@ EXPOSE 3000
 CMD ["node", "dist/server.js"]
 ```
 
-## 测试
-
-```bash
-# 运行测试
-npm test
-
-# 带覆盖率
-npm run test:coverage
-```
-
 ## 监控和日志
 
 - **应用日志**: 使用 Pino 结构化日志

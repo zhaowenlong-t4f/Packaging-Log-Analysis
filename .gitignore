@@ -1,2 +1,4 @@
 ﻿# .grok files
 *.grok
+*.github
+.env

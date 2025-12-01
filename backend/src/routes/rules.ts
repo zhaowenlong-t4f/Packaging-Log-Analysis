@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import {
   getRules,
+  getRuleById,
   createRule,
   updateRule,
   deleteRule,
@@ -34,6 +35,9 @@ const upload = multer({
 
 // 获取规则列表
 router.get('/', validate(ruleListQuerySchema, 'query'), getRules);
+
+// 获取单个规则详情
+router.get('/:ruleId', getRuleById);
 
 // 创建规则
 router.post('/', validate(createRuleSchema), createRule);
