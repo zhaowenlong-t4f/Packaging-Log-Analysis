@@ -11,10 +11,10 @@ const schemas_1 = require("../schemas");
 const router = express_1.default.Router();
 const upload = (0, multer_1.default)({
     limits: {
-        fileSize: parseInt(process.env.MAX_LOG_SIZE || '524288000')
+        fileSize: parseInt(process.env['MAX_LOG_SIZE'] || '524288000')
     },
-    dest: process.env.TEMP_DIR || './data/temp'
+    dest: process.env['TEMP_DIR'] || './data/temp'
 });
-router.post('/analyze', (0, validate_1.validate)(schemas_1.analyzeLogSchema), logController_1.analyzeLog);
+router.post('/analyze', upload.single('file'), (0, validate_1.validate)(schemas_1.analyzeLogSchema), logController_1.analyzeLog);
 exports.default = router;
 //# sourceMappingURL=logs.js.map

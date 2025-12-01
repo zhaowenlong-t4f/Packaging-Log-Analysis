@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LogService = void 0;
+exports.logService = exports.LogService = void 0;
 const logger_1 = require("../utils/logger");
 const database_1 = __importDefault(require("../config/database"));
 const matcher_1 = require("../utils/matcher");
@@ -61,6 +61,7 @@ class LogService {
                 });
             });
             const errorGroups = await this.analyzer.analyzeLog(lines);
+            void errorGroups;
             return {
                 analysisId: '',
                 fileName: request.fileName,
@@ -101,7 +102,7 @@ class LogService {
         const lines = rawContent.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
         return lines;
     }
-    async saveAnalysisResult(request, lines, errorGroups) {
+    async saveAnalysisResult(request, lines, _errorGroups) {
         try {
             const log = await database_1.default.log.create({
                 data: {
@@ -152,4 +153,5 @@ class LogService {
     }
 }
 exports.LogService = LogService;
+exports.logService = new LogService();
 //# sourceMappingURL=logService.js.map

@@ -6,7 +6,7 @@ export function errorHandler(
   error: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) {
   const traceId = req.headers['x-request-id'] as string || generateId();
 
@@ -46,7 +46,7 @@ export function errorHandler(
   }
 
   // 默认服务器错误
-  res.status(500).json({
+  return res.status(500).json({
     code: 500,
     message: 'Internal server error',
     data: null,

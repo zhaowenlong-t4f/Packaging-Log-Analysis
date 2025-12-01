@@ -27,6 +27,6 @@ function validateContentType(req, res, next) {
             });
         }
     }
-    next();
+    return next();
 }
 //# sourceMappingURL=validateContentType.js.map

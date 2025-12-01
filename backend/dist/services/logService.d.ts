@@ -5,7 +5,7 @@ export declare class LogService {
     analyzeLog(request: AnalyzeLogRequest): Promise<AnalysisResult>;
     getLogContent(request: AnalyzeLogRequest): Promise<string>;
     preprocessLogContent(rawContent: string): string[];
-    saveAnalysisResult(request: AnalyzeLogRequest, lines: string[], errorGroups: any[]): Promise<string>;
+    saveAnalysisResult(request: AnalyzeLogRequest, lines: string[], _errorGroups: any[]): Promise<string>;
     getAnalysisDetails(analysisId: string, query: LogDetailsQuery): Promise<{
         pagination: {
             pageNo: number;
@@ -21,4 +21,5 @@ export declare class LogService {
         }[];
     }>;
 }
+export declare const logService: LogService;
 //# sourceMappingURL=logService.d.ts.map

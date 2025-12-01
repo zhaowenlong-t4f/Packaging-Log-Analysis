@@ -14,7 +14,7 @@ const routes_1 = __importDefault(require("./routes"));
 const app = (0, express_1.default)();
 app.use((0, helmet_1.default)());
 app.use((0, cors_1.default)({
-    origin: process.env.NODE_ENV === 'production' ? ['your-frontend-domain.com'] : true,
+    origin: process.env['NODE_ENV'] === 'production' ? ['your-frontend-domain.com'] : true,
     credentials: true
 }));
 app.use((0, compression_1.default)());
@@ -23,10 +23,10 @@ app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
 app.use(validateContentType_1.validateContentType);
 app.use('/api/v1', routes_1.default);
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
-app.use('*', (req, res) => {
+app.use('*', (_req, res) => {
     res.status(404).json({
         code: 404,
         message: 'API endpoint not found',

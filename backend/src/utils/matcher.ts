@@ -12,6 +12,7 @@ export class LogAnalyzer {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      if (!line) continue;
 
       // 遍历所有规则
       for (const [ruleId, rule] of this.rules) {
@@ -82,7 +83,7 @@ export class LogAnalyzer {
     return errors.sort((a, b) => {
       // 按严重程度排序，然后按权重排序
       const severityOrder = { CRITICAL: 0, ERROR: 1, WARNING: 2, INFO: 3 };
-      const severityDiff = severityOrder[a.severity] - severityOrder[b.severity];
+      const severityDiff = severityOrder[a.severity as keyof typeof severityOrder] - severityOrder[b.severity as keyof typeof severityOrder];
       if (severityDiff !== 0) return severityDiff;
       return (b.weight || 0) - (a.weight || 0);
     });

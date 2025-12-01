@@ -18,6 +18,16 @@ export class DatabaseError extends Error {
   }
 }
 
+export class AppError extends Error {
+  statusCode: number;
+
+  constructor(message: string, statusCode: number = 500) {
+    super(message);
+    this.name = 'AppError';
+    this.statusCode = statusCode;
+  }
+}
+
 export class FileProcessingError extends Error {
   constructor(message: string) {
     super(message);

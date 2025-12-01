@@ -1,7 +1,7 @@
 import pino from 'pino';
 
 export const logger = pino({
-  level: process.env.LOG_LEVEL || 'info'
+  level: process.env['LOG_LEVEL'] || 'info'
 });
 
 export function requestLogger(req: any, res: any, next: any) {

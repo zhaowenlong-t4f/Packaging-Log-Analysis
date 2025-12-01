@@ -7,7 +7,7 @@ exports.logger = void 0;
 exports.requestLogger = requestLogger;
 const pino_1 = __importDefault(require("pino"));
 exports.logger = (0, pino_1.default)({
-    level: process.env.LOG_LEVEL || 'info'
+    level: process.env['LOG_LEVEL'] || 'info'
 });
 function requestLogger(req, res, next) {
     const start = Date.now();

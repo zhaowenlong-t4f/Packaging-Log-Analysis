@@ -11,8 +11,8 @@ import {
   importRules,
   getRuleHistory,
   rollbackRule,
-  validateRules,
-  batchUpdateCategories
+  validateRule,
+  getRuleStats
 } from '../controllers/ruleController';
 import { validate } from '../middleware/validate';
 import {
@@ -20,7 +20,6 @@ import {
   updateRuleSchema,
   ruleListQuerySchema,
   batchDeleteRulesSchema,
-  batchUpdateCategoriesSchema,
   validateRulesSchema
 } from '../schemas';
 
@@ -64,9 +63,9 @@ router.get('/:ruleId/history', getRuleHistory);
 router.post('/:ruleId/rollback/:versionId', rollbackRule);
 
 // 验证规则
-router.post('/validate', validate(validateRulesSchema), validateRules);
+router.post('/validate', validate(validateRulesSchema), validateRule);
 
-// 批量更新分类
-router.post('/batch-update-category', validate(batchUpdateCategoriesSchema), batchUpdateCategories);
+// 规则统计
+router.get('/stats', getRuleStats);
 
 export default router;

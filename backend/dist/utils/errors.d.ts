@@ -11,6 +11,10 @@ export declare class ValidationError extends Error {
 export declare class DatabaseError extends Error {
     constructor(message: string);
 }
+export declare class AppError extends Error {
+    statusCode: number;
+    constructor(message: string, statusCode?: number);
+}
 export declare class FileProcessingError extends Error {
     constructor(message: string);
 }

@@ -3,7 +3,7 @@ import { ZodSchema, ZodError } from 'zod';
 import { ValidationError } from '../utils/errors';
 
 export function validate(schema: ZodSchema, source: 'body' | 'query' | 'params' = 'body') {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, _res: Response, next: NextFunction) => {
     try {
       let dataToValidate: any;
 

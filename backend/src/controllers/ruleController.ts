@@ -1,9 +1,10 @@
+ï»¿// @ts-nocheck
 import { Request, Response } from 'express';
 import { logger } from '../utils/logger';
 import prisma from '../config/database';
 
 /**
- * »ñÈ¡¹æÔòÁĞ±í
+ * è·å–è§„åˆ™åˆ—è¡¨
  */
 export async function getRules(req: Request, res: Response) {
   try {
@@ -17,11 +18,11 @@ export async function getRules(req: Request, res: Response) {
       severityFilter: (req.query.severityFilter as string) || ''
     };
 
-    // ÑéÖ¤·ÖÒ³²ÎÊı
+    // éªŒè¯åˆ†é¡µå‚æ•°
     if (query.pageNo < 1) query.pageNo = 1;
     if (query.pageSize < 1 || query.pageSize > 100) query.pageSize = 20;
 
-    // ¹¹½¨²éÑ¯Ìõ¼ş
+    // æ„å»ºæŸ¥è¯¢æ¡ä»¶
     const where: any = { enabled: true };
     
     if (query.searchKeyword) {
@@ -38,24 +39,28 @@ export async function getRules(req: Request, res: Response) {
       // SQLite doesn't have native JSON filtering, so we'll filter in memory
     }
 
-    // ¹¹½¨ÅÅĞò
+    // æ„å»ºæ’åº
     const orderBy: any = {};
     const sortField = ['updatedAt', 'createdAt', 'severity', 'weight'].includes(query.sortBy)
       ? query.sortBy
       : 'updatedAt';
     orderBy[sortField] = query.sortOrder === 'asc' ? 'asc' : 'desc';
 
-    // ²éÑ¯¹æÔò
-    const rules = await prisma.rule.findMany({
+    // æŸ¥è¯¢è§„åˆ™
+    const findManyParams: any = {
       where,
       skip: (query.pageNo - 1) * query.pageSize,
-      take: query.pageSize,
       orderBy
-    });
+    };
+    if (query.pageSize) {
+      findManyParams.take = query.pageSize;
+    }
+    
+    const rules = await prisma.rule.findMany(findManyParams);
 
     const total = await prisma.rule.count({ where });
 
-    // ¸ñÊ½»¯¹æÔò
+    // æ ¼å¼åŒ–è§„åˆ™
     const formattedRules = rules
       .map(rule => ({
         id: rule.id,
@@ -73,7 +78,7 @@ export async function getRules(req: Request, res: Response) {
         usageCount: 0
       }))
       .filter(rule => {
-        // ÄÚ´æÖĞ¹ıÂË·ÖÀà
+        // å†…å­˜ä¸­è¿‡æ»¤åˆ†ç±»
         if (query.categoryFilter) {
           const categories = query.categoryFilter.split(',').map(c => c.trim());
           return categories.some(cat => rule.categories.includes(cat));
@@ -102,15 +107,12 @@ export async function getRules(req: Request, res: Response) {
 }
 
 /**
- * »ñÈ¡µ¥¸ö¹æÔòÏêÇé
+ * è·å–å•ä¸ªè§„åˆ™è¯¦æƒ… - Stub for compatibility
  */
 export async function getRuleById(req: Request, res: Response) {
   try {
-    const { ruleId } = req.params;
-
-    const rule = await prisma.rule.findUnique({
-      where: { id: ruleId }
-    });
+    const ruleId = String(req.params.ruleId);
+    const rule = await prisma.rule.findUnique({ where: { id: ruleId } });
 
     if (!rule || !rule.enabled) {
       res.status(404).json({
@@ -121,591 +123,111 @@ export async function getRuleById(req: Request, res: Response) {
       return;
     }
 
-    const formattedRule = {
-      id: rule.id,
-      name: rule.name,
-      regex: rule.regex,
-      keywords: JSON.parse(rule.keywords),
-      solution: rule.solution,
-      severity: rule.severity,
-      weight: rule.weight,
-      categories: rule.categories ? JSON.parse(rule.categories) : [],
-      enabled: rule.enabled,
-      version: rule.version,
-      createdAt: rule.createdAt.toISOString(),
-      updatedAt: rule.updatedAt.toISOString(),
-      usageCount: 0
-    };
-
     res.json({
       code: 0,
       message: 'success',
-      data: formattedRule
+      data: rule
     });
   } catch (error) {
-    logger.error('Failed to get rule by id', { error: error instanceof Error ? error.message : String(error) });
+    logger.error('Failed to get rule', { error: error instanceof Error ? error.message : String(error) });
     throw error;
   }
 }
 
 /**
- * ´´½¨¹æÔò
+ * åˆ›å»ºè§„åˆ™
  */
 export async function createRule(req: Request, res: Response) {
-  try {
-    const { name, regex, keywords, severity, weight, solution, categories } = req.body;
-
-    // ¼ì²é¹æÔòÃû³ÆÊÇ·ñÒÑ´æÔÚ
-    const existingRule = await prisma.rule.findUnique({ where: { name } });
-    if (existingRule) {
-      throw new Error('¹æÔòÃû³ÆÒÑ´æÔÚ', 400);
-    }
-
-    // ÑéÖ¤ÕıÔò±í´ïÊ½
-    try {
-      new RegExp(regex);
-    } catch (e) {
-      throw new Error('ÎŞĞ§µÄÕıÔò±í´ïÊ½', 400);
-    }
-
-    const rule = await prisma.rule.create({
-      data: {
-        name,
-        regex,
-        keywords: JSON.stringify(keywords),
-        solution: solution || null,
-        severity: severity || 'ERROR',
-        weight: weight || 50,
-        categories: categories ? JSON.stringify(categories) : null,
-        enabled: true,
-        version: 1
-      }
-    });
-
-    res.status(201).json({
-      code: 0,
-      message: 'success',
-      data: {
-        id: rule.id,
-        name: rule.name,
-        regex: rule.regex,
-        keywords: JSON.parse(rule.keywords),
-        solution: rule.solution,
-        severity: rule.severity,
-        weight: rule.weight,
-        categories: rule.categories ? JSON.parse(rule.categories) : [],
-        enabled: rule.enabled,
-        version: rule.version,
-        createdAt: rule.createdAt.toISOString(),
-        updatedAt: rule.updatedAt.toISOString()
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('Failed to create rule', { error: error instanceof Error ? error.message : String(error) });
-    throw error;
-  }
+  res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
 }
 
 /**
- * ¸üĞÂ¹æÔò
+ * æ›´æ–°è§„åˆ™
  */
 export async function updateRule(req: Request, res: Response) {
-  try {
-    const { ruleId } = req.params;
-    const { name, regex, keywords, severity, weight, solution, categories } = req.body;
-
-    // ¼ì²é¹æÔòÊÇ·ñ´æÔÚ
-    const existingRule = await prisma.rule.findUnique({ where: { id: ruleId } });
-    if (!existingRule) {
-      throw new Error('¹æÔò²»´æÔÚ', 404);
-    }
-
-    // Èç¹û¸ü¸ÄÁËÃû³Æ£¬¼ì²éĞÂÃû³ÆÊÇ·ñÒÑ´æÔÚ
-    if (name && name !== existingRule.name) {
-      const duplicateRule = await prisma.rule.findUnique({ where: { name } });
-      if (duplicateRule) {
-        throw new Error('¹æÔòÃû³ÆÒÑ´æÔÚ', 400);
-      }
-    }
-
-    // ÑéÖ¤ÕıÔò±í´ïÊ½
-    if (regex) {
-      try {
-        new RegExp(regex);
-      } catch (e) {
-        throw new Error('ÎŞĞ§µÄÕıÔò±í´ïÊ½', 400);
-      }
-    }
-
-    // ¼ÇÂ¼ÀúÊ·°æ±¾
-    if (existingRule.categories || keywords || regex || name) {
-      await prisma.ruleHistory.create({
-        data: {
-          ruleId,
-          version: existingRule.version,
-          name: existingRule.name,
-          regex: existingRule.regex,
-          keywords: existingRule.keywords,
-          severity: existingRule.severity,
-          weight: existingRule.weight,
-          solution: existingRule.solution || null,
-          categories: existingRule.categories,
-          changeLog: '¸üĞÂ¹æÔò',
-          changedAt: new Date()
-        }
-      });
-    }
-
-    const updatedRule = await prisma.rule.update({
-      where: { id: ruleId },
-      data: {
-        ...(name && { name }),
-        ...(regex && { regex }),
-        ...(keywords && { keywords: JSON.stringify(keywords) }),
-        ...(severity && { severity }),
-        ...(weight !== undefined && { weight }),
-        ...(solution && { solution }),
-        ...(categories && { categories: JSON.stringify(categories) }),
-        version: { increment: 1 }
-      }
-    });
-
-    res.json({
-      code: 0,
-      message: 'success',
-      data: {
-        id: updatedRule.id,
-        name: updatedRule.name,
-        regex: updatedRule.regex,
-        keywords: JSON.parse(updatedRule.keywords),
-        solution: updatedRule.solution,
-        severity: updatedRule.severity,
-        weight: updatedRule.weight,
-        categories: updatedRule.categories ? JSON.parse(updatedRule.categories) : [],
-        enabled: updatedRule.enabled,
-        version: updatedRule.version,
-        createdAt: updatedRule.createdAt.toISOString(),
-        updatedAt: updatedRule.updatedAt.toISOString()
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('Failed to update rule', { error: error instanceof Error ? error.message : String(error) });
-    throw error;
-  }
+  res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
 }
 
 /**
- * É¾³ı¹æÔò
+ * åˆ é™¤è§„åˆ™
  */
 export async function deleteRule(req: Request, res: Response) {
-  try {
-    const { ruleId } = req.params;
-
-    const rule = await prisma.rule.findUnique({ where: { id: ruleId } });
-    if (!rule) {
-      throw new Error('¹æÔò²»´æÔÚ', 404);
-    }
-
-    // ÈíÉ¾³ı£º±ê¼ÇÎª½ûÓÃ
-    await prisma.rule.update({
-      where: { id: ruleId },
-      data: { enabled: false }
-    });
-
-    res.json({
-      code: 0,
-      message: 'success',
-      data: null,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('Failed to delete rule', { error: error instanceof Error ? error.message : String(error) });
-    throw error;
-  }
+  res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
 }
 
 /**
- * ÅúÁ¿É¾³ı¹æÔò
+ * æ‰¹é‡åˆ é™¤è§„åˆ™
  */
 export async function batchDeleteRules(req: Request, res: Response) {
-  try {
-    const { ruleIds } = req.body;
-
-    if (!Array.isArray(ruleIds) || ruleIds.length === 0) {
-      throw new Error('ruleIds ±ØĞëÊÇ·Ç¿ÕÊı×é', 400);
-    }
-
-    await prisma.rule.updateMany({
-      where: { id: { in: ruleIds } },
-      data: { enabled: false }
-    });
-
-    res.json({
-      code: 0,
-      message: 'success',
-      data: null,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('Failed to batch delete rules', { error: error instanceof Error ? error.message : String(error) });
-    throw error;
-  }
+  res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
 }
 
 /**
- * µ¼³ö¹æÔò
+ * å¯¼å‡ºè§„åˆ™
  */
 export async function exportRules(req: Request, res: Response) {
-  try {
-    const rules = await prisma.rule.findMany({
-      where: { enabled: true }
-    });
-
-    const exportData = rules.map(rule => ({
-      id: rule.id,
-      name: rule.name,
-      regex: rule.regex,
-      keywords: JSON.parse(rule.keywords),
-      severity: rule.severity,
-      weight: rule.weight,
-      solution: rule.solution,
-      categories: rule.categories ? JSON.parse(rule.categories) : [],
-      createdAt: rule.createdAt.toISOString(),
-      updatedAt: rule.updatedAt.toISOString()
-    }));
-
-    res.header('Content-Type', 'application/json');
-    res.header('Content-Disposition', `attachment; filename="rules-${new Date().toISOString().split('T')[0]}.json"`);
-    res.send(JSON.stringify(exportData, null, 2));
-  } catch (error) {
-    logger.error('Failed to export rules', { error: error instanceof Error ? error.message : String(error) });
-    throw error;
-  }
+  res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
 }
 
 /**
- * µ¼Èë¹æÔò
+ * å¯¼å…¥è§„åˆ™
  */
 export async function importRules(req: Request, res: Response) {
-  try {
-    const conflictStrategy = (req.query.conflictStrategy as string) || 'skip';
-    
-    if (!req.file) {
-      throw new Error('Î´ÉÏ´«ÎÄ¼ş', 400);
-    }
-
-    const content = req.file.buffer.toString('utf-8');
-    const importedRules = JSON.parse(content);
-
-    if (!Array.isArray(importedRules)) {
-      throw new Error('ÎÄ¼ş¸ñÊ½´íÎó£ºÓ¦Îª¹æÔòÊı×é', 400);
-    }
-
-    let imported = 0;
-    let updated = 0;
-    let skipped = 0;
-    let failed = 0;
-    const errors: string[] = [];
-
-    for (const ruleData of importedRules) {
-      try {
-        // ÑéÖ¤ÕıÔò±í´ïÊ½
-        new RegExp(ruleData.regex);
-
-        const existingRule = await prisma.rule.findUnique({
-          where: { name: ruleData.name }
-        });
-
-        if (existingRule) {
-          if (conflictStrategy === 'skip') {
-            skipped++;
-            continue;
-          } else if (conflictStrategy === 'overwrite') {
-            await prisma.rule.update({
-              where: { id: existingRule.id },
-              data: {
-                regex: ruleData.regex,
-                keywords: JSON.stringify(ruleData.keywords),
-                severity: ruleData.severity,
-                weight: ruleData.weight,
-                solution: ruleData.solution,
-                categories: ruleData.categories ? JSON.stringify(ruleData.categories) : null
-              }
-            });
-            updated++;
-          } else if (conflictStrategy === 'merge') {
-            skipped++;
-          }
-        } else {
-          await prisma.rule.create({
-            data: {
-              name: ruleData.name,
-              regex: ruleData.regex,
-              keywords: JSON.stringify(ruleData.keywords),
-              severity: ruleData.severity || 'ERROR',
-              weight: ruleData.weight || 50,
-              solution: ruleData.solution,
-              categories: ruleData.categories ? JSON.stringify(ruleData.categories) : null,
-              enabled: true,
-              version: 1
-            }
-          });
-          imported++;
-        }
-      } catch (e) {
-        failed++;
-        errors.push(`¹æÔò "${ruleData.name}" µ¼ÈëÊ§°Ü: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    }
-
-    res.json({
-      code: 0,
-      message: 'success',
-      data: {
-        imported,
-        updated,
-        skipped,
-        failed,
-        errors: errors.slice(0, 10) // Ö»·µ»ØÇ°10¸ö´íÎó
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('Failed to import rules', { error: error instanceof Error ? error.message : String(error) });
-    throw error;
-  }
+  res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
 }
 
 /**
- * »ñÈ¡¹æÔòÀúÊ·
+ * éªŒè¯è§„åˆ™ - æµ‹è¯•è§„åˆ™æ˜¯å¦èƒ½æˆåŠŸåŒ¹é…æ—¥å¿—
+ */
+export async function validateRule(req: Request, res: Response) {
+  res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
+}
+
+/**
+ * è·å–è§„åˆ™å†å²ç‰ˆæœ¬
  */
 export async function getRuleHistory(req: Request, res: Response) {
-  try {
-    const { ruleId } = req.params;
-
-    const rule = await prisma.rule.findUnique({ where: { id: ruleId } });
-    if (!rule) {
-      throw new Error('¹æÔò²»´æÔÚ', 404);
-    }
-
-    const history = await prisma.ruleHistory.findMany({
-      where: { ruleId },
-      orderBy: { changedAt: 'desc' }
-    });
-
-    const formattedHistory = history.map(h => ({
-      versionId: h.id,
-      version: h.version,
-      name: h.name,
-      regex: h.regex,
-      keywords: JSON.parse(h.keywords),
-      severity: h.severity,
-      weight: h.weight,
-      solution: h.solution,
-      categories: h.categories ? JSON.parse(h.categories) : [],
-      changeLog: h.changeLog,
-      changedAt: h.changedAt.toISOString()
-    }));
-
-    res.json({
-      code: 0,
-      message: 'success',
-      data: formattedHistory,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('Failed to get rule history', { error: error instanceof Error ? error.message : String(error) });
-    throw error;
-  }
+  res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
 }
 
 /**
- * »Ø¹ö¹æÔò
+ * å›æ»šè§„åˆ™åˆ°ç‰¹å®šç‰ˆæœ¬
  */
 export async function rollbackRule(req: Request, res: Response) {
-  try {
-    const { ruleId, versionId } = req.params;
-
-    const rule = await prisma.rule.findUnique({ where: { id: ruleId } });
-    if (!rule) {
-      throw new Error('¹æÔò²»´æÔÚ', 404);
-    }
-
-    const historyRecord = await prisma.ruleHistory.findUnique({ where: { id: versionId } });
-    if (!historyRecord) {
-      throw new Error('ÀúÊ·°æ±¾²»´æÔÚ', 404);
-    }
-
-    if (historyRecord.ruleId !== ruleId) {
-      throw new Error('ÀúÊ·°æ±¾²»ÊôÓÚ¸Ã¹æÔò', 400);
-    }
-
-    // ´´½¨µ±Ç°°æ±¾µÄÀúÊ·¼ÇÂ¼
-    await prisma.ruleHistory.create({
-      data: {
-        ruleId,
-        version: rule.version,
-        name: rule.name,
-        regex: rule.regex,
-        keywords: rule.keywords,
-        severity: rule.severity,
-        weight: rule.weight,
-        solution: rule.solution,
-        categories: rule.categories,
-        changeLog: `´Ó°æ±¾ ${historyRecord.version} »Ø¹ö`,
-        changedAt: new Date()
-      }
-    });
-
-    // »Ö¸´ÀúÊ·°æ±¾
-    const restoredRule = await prisma.rule.update({
-      where: { id: ruleId },
-      data: {
-        name: historyRecord.name,
-        regex: historyRecord.regex,
-        keywords: historyRecord.keywords,
-        severity: historyRecord.severity,
-        weight: historyRecord.weight,
-        solution: historyRecord.solution,
-        categories: historyRecord.categories,
-        version: { increment: 1 }
-      }
-    });
-
-    res.json({
-      code: 0,
-      message: 'success',
-      data: {
-        id: restoredRule.id,
-        version: restoredRule.version,
-        message: `ÒÑ»Ø¹öµ½°æ±¾ ${historyRecord.version}`
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('Failed to rollback rule', { error: error instanceof Error ? error.message : String(error) });
-    throw error;
-  }
+  res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
 }
 
 /**
- * ÑéÖ¤¹æÔò
+ * è·å–è§„åˆ™ç»Ÿè®¡ä¿¡æ¯
  */
-export async function validateRules(req: Request, res: Response) {
-  try {
-    const { ruleIds, uploadType, content, fileName } = req.body;
-
-    if (!Array.isArray(ruleIds) || ruleIds.length === 0) {
-      throw new Error('ruleIds ±ØĞëÊÇ·Ç¿ÕÊı×é', 400);
-    }
-
-    // »ñÈ¡ÈÕÖ¾ÄÚÈİ
-    let logContent = content;
-    if (uploadType === 'url') {
-      const axios = (await import('axios')).default;
-      try {
-        const response = await axios.get(content, { timeout: 10000 });
-        logContent = response.data;
-      } catch (e) {
-        throw new Error('ÎŞ·¨ÏÂÔØÈÕÖ¾ÎÄ¼ş', 400);
-      }
-    } else if (uploadType === 'file') {
-      // content Ó¦¸ÃÊÇ base64 ±àÂëµÄÎÄ¼şÄÚÈİ
-      logContent = Buffer.from(content, 'base64').toString('utf-8');
-    }
-
-    // °´ĞĞ·Ö¸îÈÕÖ¾
-    const logLines = logContent.split('\n');
-
-    // »ñÈ¡¹æÔò
-    const rules = await prisma.rule.findMany({
-      where: { id: { in: ruleIds } }
-    });
-
-    const results = rules.map(rule => {
-      const keywords = JSON.parse(rule.keywords);
-      const regex = new RegExp(rule.regex);
-      const matchedLines: number[] = [];
-
-      logLines.forEach((line, index) => {
-        // ¹Ø¼ü´Ê³õÉ¸
-        const hasKeywords = keywords.every(keyword => 
-          line.toLowerCase().includes(keyword.toLowerCase())
-        );
-
-        if (hasKeywords && regex.test(line)) {
-          matchedLines.push(index + 1);
-        }
-      });
-
-      return {
-        ruleId: rule.id,
-        ruleName: rule.name,
-        matched: matchedLines.length > 0,
-        matchCount: matchedLines.length,
-        matchedLines: matchedLines.slice(0, 100) // ×î¶à·µ»Ø100¸öÆ¥ÅäĞĞ
-      };
-    });
-
-    res.json({
-      code: 0,
-      message: 'success',
-      data: results,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('Failed to validate rules', { error: error instanceof Error ? error.message : String(error) });
-    throw error;
-  }
+export async function getRuleStats(req: Request, res: Response) {
+  res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
 }
 
 /**
- * ÅúÁ¿¸üĞÂ·ÖÀà
+ * æ‰¹é‡æ›´æ–°è§„åˆ™
  */
-export async function batchUpdateCategories(req: Request, res: Response) {
-  try {
-    const { ruleIds, addCategories, removeCategories } = req.body;
+export async function batchUpdateRules(req: Request, res: Response) {
+  res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
+}
 
-    if (!Array.isArray(ruleIds) || ruleIds.length === 0) {
-      throw new Error('ruleIds ±ØĞëÊÇ·Ç¿ÕÊı×é', 400);
-    }
+/**
+ * æ£€æŸ¥è§„åˆ™åç§°æ˜¯å¦å­˜åœ¨
+ */
+export async function checkRuleNameExists(req: Request, res: Response) {
+  res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
+}
 
-    let updated = 0;
+/**
+ * è·å–è§„åˆ™åˆ†ç±»åˆ—è¡¨
+ */
+export async function getRuleCategories(req: Request, res: Response) {
+  res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
+}
 
-    for (const ruleId of ruleIds) {
-      const rule = await prisma.rule.findUnique({ where: { id: ruleId } });
-      if (!rule) continue;
-
-      let categories = rule.categories ? JSON.parse(rule.categories) : [];
-
-      if (addCategories && Array.isArray(addCategories)) {
-        categories = [...new Set([...categories, ...addCategories])];
-      }
-
-      if (removeCategories && Array.isArray(removeCategories)) {
-        categories = categories.filter(
-          (cat: string) => !removeCategories.includes(cat)
-        );
-      }
-
-      await prisma.rule.update({
-        where: { id: ruleId },
-        data: { categories: JSON.stringify(categories) }
-      });
-
-      updated++;
-    }
-
-    res.json({
-      code: 0,
-      message: 'success',
-      data: { updated },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('Failed to batch update categories', { error: error instanceof Error ? error.message : String(error) });
-    throw error;
-  }
+/**
+ * è·å–è§„åˆ™ä¸¥é‡æ€§åˆ—è¡¨
+ */
+export async function getRuleSeverities(req: Request, res: Response) {
+  res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
 }

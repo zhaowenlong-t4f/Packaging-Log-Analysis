@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.errorHandler = errorHandler;
 const logger_1 = require("../utils/logger");
 const errors_1 = require("../utils/errors");
-function errorHandler(error, req, res, next) {
+function errorHandler(error, req, res, _next) {
     const traceId = req.headers['x-request-id'] || generateId();
     logger_1.logger.error('Unhandled error', {
         traceId,
@@ -35,7 +35,7 @@ function errorHandler(error, req, res, next) {
             });
         }
     }
-    res.status(500).json({
+    return res.status(500).json({
         code: 500,
         message: 'Internal server error',
         data: null,

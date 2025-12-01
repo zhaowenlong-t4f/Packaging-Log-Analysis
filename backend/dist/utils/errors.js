@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.NetworkError = exports.FileProcessingError = exports.DatabaseError = exports.ValidationError = void 0;
+exports.NetworkError = exports.FileProcessingError = exports.AppError = exports.DatabaseError = exports.ValidationError = void 0;
 class ValidationError extends Error {
     constructor(errors) {
         super('Validation failed');
@@ -16,6 +16,14 @@ class DatabaseError extends Error {
     }
 }
 exports.DatabaseError = DatabaseError;
+class AppError extends Error {
+    constructor(message, statusCode = 500) {
+        super(message);
+        this.name = 'AppError';
+        this.statusCode = statusCode;
+    }
+}
+exports.AppError = AppError;
 class FileProcessingError extends Error {
     constructor(message) {
         super(message);

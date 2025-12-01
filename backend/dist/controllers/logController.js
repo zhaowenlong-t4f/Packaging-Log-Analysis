@@ -33,7 +33,7 @@ async function analyzeLog(req, res, next) {
         res.json(response);
     }
     catch (error) {
-        logger_1.logger.error('Log analysis failed', { error: error.message });
+        logger_1.logger.error('Log analysis failed', { error: error instanceof Error ? error.message : String(error) });
         next(error);
     }
 }

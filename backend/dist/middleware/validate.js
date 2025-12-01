@@ -4,7 +4,7 @@ exports.validate = validate;
 const zod_1 = require("zod");
 const errors_1 = require("../utils/errors");
 function validate(schema, source = 'body') {
-    return (req, res, next) => {
+    return (req, _res, next) => {
         try {
             let dataToValidate;
             switch (source) {

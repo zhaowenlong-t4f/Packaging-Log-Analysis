@@ -15,6 +15,7 @@ const upload = (0, multer_1.default)({
     }
 });
 router.get('/', (0, validate_1.validate)(schemas_1.ruleListQuerySchema, 'query'), ruleController_1.getRules);
+router.get('/:ruleId', ruleController_1.getRuleById);
 router.post('/', (0, validate_1.validate)(schemas_1.createRuleSchema), ruleController_1.createRule);
 router.put('/:ruleId', (0, validate_1.validate)(schemas_1.updateRuleSchema), ruleController_1.updateRule);
 router.delete('/:ruleId', ruleController_1.deleteRule);
@@ -23,7 +24,7 @@ router.get('/export', ruleController_1.exportRules);
 router.post('/import', upload.single('file'), ruleController_1.importRules);
 router.get('/:ruleId/history', ruleController_1.getRuleHistory);
 router.post('/:ruleId/rollback/:versionId', ruleController_1.rollbackRule);
-router.post('/validate', (0, validate_1.validate)(schemas_1.validateRulesSchema), ruleController_1.validateRules);
-router.post('/batch-update-category', (0, validate_1.validate)(schemas_1.batchUpdateCategoriesSchema), ruleController_1.batchUpdateCategories);
+router.post('/validate', (0, validate_1.validate)(schemas_1.validateRulesSchema), ruleController_1.validateRule);
+router.get('/stats', ruleController_1.getRuleStats);
 exports.default = router;
 //# sourceMappingURL=rules.js.map

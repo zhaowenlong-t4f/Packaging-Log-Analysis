@@ -14,7 +14,7 @@ app.use(helmet());
 
 // CORS
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? ['your-frontend-domain.com'] : true,
+  origin: process.env['NODE_ENV'] === 'production' ? ['your-frontend-domain.com'] : true,
   credentials: true
 }));
 
@@ -35,12 +35,12 @@ app.use(validateContentType);
 app.use('/api/v1', routes);
 
 // 健康检查
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // 404 处理
-app.use('*', (req, res) => {
+app.use('*', (_req, res) => {
   res.status(404).json({
     code: 404,
     message: 'API endpoint not found',

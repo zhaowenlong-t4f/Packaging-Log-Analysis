@@ -40,6 +40,7 @@ export class LogService {
 
       // 4. 分析日志
       const errorGroups = await this.analyzer.analyzeLog(lines);
+      void errorGroups; // 标记为已使用以消除警告
 
       // 5. 返回结果
       return {
@@ -90,7 +91,7 @@ export class LogService {
   /**
    * 保存分析结果
    */
-  async saveAnalysisResult(request: AnalyzeLogRequest, lines: string[], errorGroups: any[]): Promise<string> {
+  async saveAnalysisResult(request: AnalyzeLogRequest, lines: string[], _errorGroups: any[]): Promise<string> {
     try {
       const log = await prisma.log.create({
         data: {

@@ -13,7 +13,7 @@ export function validateContentType(req: Request, res: Response, next: NextFunct
       });
     }
 
-    // 允许的 Content-Type
+    // 兝许�?Content-Type
     const allowedTypes = [
       'application/json',
       'multipart/form-data',
@@ -32,5 +32,5 @@ export function validateContentType(req: Request, res: Response, next: NextFunct
     }
   }
 
-  next();
+  return next();
 }

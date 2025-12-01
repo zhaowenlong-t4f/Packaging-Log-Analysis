@@ -9,10 +9,12 @@ const database_1 = __importDefault(require("../config/database"));
 class RuleService {
     async getRules(query) {
         try {
+            const pageNo = query.pageNo || 1;
+            const pageSize = query.pageSize || 20;
             const rules = await database_1.default.rule.findMany({
                 where: { enabled: true },
-                skip: (query.pageNo - 1) * query.pageSize,
-                take: query.pageSize,
+                skip: (pageNo - 1) * pageSize,
+                take: pageSize,
                 orderBy: { updatedAt: 'desc' }
             });
             const total = await database_1.default.rule.count({ where: { enabled: true } });
@@ -21,7 +23,7 @@ class RuleService {
                 name: rule.name,
                 regex: rule.regex,
                 keywords: JSON.parse(rule.keywords),
-                solution: rule.solution,
+                solution: rule.solution || '',
                 severity: rule.severity,
                 weight: rule.weight,
                 categories: rule.categories ? JSON.parse(rule.categories) : [],
@@ -36,10 +38,10 @@ class RuleService {
                 message: 'success',
                 data: {
                     pagination: {
-                        pageNo: query.pageNo,
-                        pageSize: query.pageSize,
+                        pageNo: pageNo,
+                        pageSize: pageSize,
                         total,
-                        totalPages: Math.ceil(total / query.pageSize)
+                        totalPages: Math.ceil(total / pageSize)
                     },
                     items: formattedRules
                 },
@@ -47,7 +49,7 @@ class RuleService {
             };
         }
         catch (error) {
-            logger_1.logger.error('Failed to get rules', { error: error.message });
+            logger_1.logger.error('Failed to get rules', { error: error instanceof Error ? error.message : String(error) });
             throw error;
         }
     }
@@ -83,7 +85,7 @@ class RuleService {
             };
         }
         catch (error) {
-            logger_1.logger.error('Failed to create rule', { error: error.message });
+            logger_1.logger.error('Failed to create rule', { error: error instanceof Error ? error.message : String(error) });
             throw error;
         }
     }
@@ -118,7 +120,7 @@ class RuleService {
             };
         }
         catch (error) {
-            logger_1.logger.error('Failed to update rule', { ruleId, error: error.message });
+            logger_1.logger.error('Failed to update rule', { ruleId, error: error instanceof Error ? error.message : String(error) });
             throw error;
         }
     }
@@ -129,7 +131,7 @@ class RuleService {
             });
         }
         catch (error) {
-            logger_1.logger.error('Failed to delete rule', { ruleId, error: error.message });
+            logger_1.logger.error('Failed to delete rule', { ruleId, error: error instanceof Error ? error.message : String(error) });
             throw error;
         }
     }

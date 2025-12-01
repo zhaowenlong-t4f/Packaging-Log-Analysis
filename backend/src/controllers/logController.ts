@@ -43,7 +43,7 @@ export async function analyzeLog(
 
     res.json(response);
   } catch (error) {
-    logger.error('Log analysis failed', { error: error.message });
+    logger.error('Log analysis failed', { error: error instanceof Error ? error.message : String(error) });
     next(error);
   }
 }
