@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 日志表
+model Log {
+  id             String    @id @default(cuid())
+  fileName       String
+  uploadType     String    // 'url', 'file', 'text'
+  fileSize       BigInt?
+  totalLines     Int?
+  rawContent     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  errors         Error[]
+  errorOccurrences ErrorOccurrence[]
+
+  @@index([createdAt])
+  @@index([fileName])
+}
+
+// 错误表
+model Error {
+  id                 String    @id @default(cuid())
+  logId              String
+  log                Log       @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  matchedRuleId      String?
+  matchedRule        Rule?     @relation(fields: [matchedRuleId], references: [id], onDelete: SetNull)
+
+  errorType          String
+  severity           String    // 'CRITICAL', 'ERROR', 'WARNING', 'INFO'
+  title              String
+  description        String?
+  solution           String?
+
+  occurrenceCount    Int       @default(1)
+  firstOccurrenceLine Int?
+  lastOccurrenceLine  Int?
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  occurrences        ErrorOccurrence[]
+
+  @@index([logId])
+  @@index([severity])
+  @@index([matchedRuleId])
+}
+
+// 错误出现表
+model ErrorOccurrence {
+  id              String    @id @default(cuid())
+  errorId         String
+  error           Error     @relation(fields: [errorId], references: [id], onDelete: Cascade)
+
+  logId           String
+  log             Log       @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  lineNumber      Int
+  rawLine         String
+  contextBefore   String?   // JSON 数组序列化为 string
+  contextAfter    String?
+  sequence        Int?
+
+  createdAt       DateTime  @default(now())
+
+  @@index([errorId])
+  @@index([lineNumber])
+}
+
+// 规则表
+model Rule {
+  id              String    @id @default(cuid())
+  name            String    @unique
+  regex           String
+  keywords        String    // JSON 数组序列化为 string
+  solution        String?
+  severity        String    @default("ERROR")
+  weight          Int       @default(50)
+  categories      String?   // JSON 数组序列化为 string
+  enabled         Boolean   @default(true)
+  version         Int       @default(1)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  errors          Error[]
+  histories       RuleHistory[]
+
+  @@index([enabled])
+  @@index([severity])
+  @@index([updatedAt])
+}
+
+// 规则历史表
+model RuleHistory {
+  id              String    @id @default(cuid())
+  ruleId          String
+  rule            Rule      @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  version         Int
+  name            String
+  regex           String
+  keywords        String    // JSON 数组序列化为 string
+  solution        String?
+  severity        String
+  weight          Int
+  categories      String?   // JSON 数组序列化为 string
+  changeLog       String?
+
+  changedAt       DateTime  @default(now())
+
+  @@unique([ruleId, version])
+  @@index([ruleId])
+  @@index([changedAt])
+}
