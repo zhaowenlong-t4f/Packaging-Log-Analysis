@@ -21,6 +21,7 @@ exports.getRuleCategories = getRuleCategories;
 exports.getRuleSeverities = getRuleSeverities;
 const logger_1 = require("../utils/logger");
 const database_1 = __importDefault(require("../config/database"));
+const schemas_1 = require("../schemas");
 async function getRules(req, res) {
     try {
         const query = {
@@ -38,29 +39,24 @@ async function getRules(req, res) {
             query.pageSize = 20;
         const where = { enabled: true };
         if (query.searchKeyword) {
-            where.name = { contains: query.searchKeyword, mode: 'insensitive' };
+            where.name = { contains: query.searchKeyword };
         }
         if (query.severityFilter) {
             const severities = query.severityFilter.split(',').map(s => s.trim());
             where.severity = { in: severities };
         }
-        if (query.categoryFilter) {
-            const categories = query.categoryFilter.split(',').map(c => c.trim());
-        }
-        const orderBy = {};
         const sortField = ['updatedAt', 'createdAt', 'severity', 'weight'].includes(query.sortBy)
             ? query.sortBy
             : 'updatedAt';
-        orderBy[sortField] = query.sortOrder === 'asc' ? 'asc' : 'desc';
-        const findManyParams = {
+        const orderBy = {
+            [sortField]: query.sortOrder === 'asc' ? 'asc' : 'desc'
+        };
+        const rules = await database_1.default.rule.findMany({
             where,
             skip: (query.pageNo - 1) * query.pageSize,
+            take: query.pageSize,
             orderBy
-        };
-        if (query.pageSize) {
-            findManyParams.take = query.pageSize;
-        }
-        const rules = await database_1.default.rule.findMany(findManyParams);
+        });
         const total = await database_1.default.rule.count({ where });
         const formattedRules = rules
             .map(rule => ({
@@ -129,13 +125,109 @@ async function getRuleById(req, res) {
     }
 }
 async function createRule(req, res) {
-    res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
+    try {
+        const validated = schemas_1.createRuleSchema.parse(req.body);
+        const rule = await database_1.default.rule.create({
+            data: {
+                name: validated.name,
+                regex: validated.regex,
+                keywords: JSON.stringify(validated.keywords),
+                solution: validated.solution,
+                severity: validated.severity || 'ERROR',
+                weight: validated.weight || 50,
+                categories: validated.categories ? JSON.stringify(validated.categories) : null,
+                enabled: true,
+                version: 1
+            }
+        });
+        res.status(201).json({
+            code: 0,
+            message: 'success',
+            data: {
+                id: rule.id,
+                name: rule.name,
+                regex: rule.regex,
+                keywords: JSON.parse(rule.keywords),
+                solution: rule.solution,
+                severity: rule.severity,
+                weight: rule.weight,
+                categories: rule.categories ? JSON.parse(rule.categories) : [],
+                enabled: rule.enabled,
+                version: rule.version,
+                createdAt: rule.createdAt.toISOString(),
+                updatedAt: rule.updatedAt.toISOString()
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        logger_1.logger.error('Failed to create rule', { error: error instanceof Error ? error.message : String(error) });
+        throw error;
+    }
 }
 async function updateRule(req, res) {
-    res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
+    try {
+        const ruleId = String(req.params.ruleId);
+        const validated = schemas_1.updateRuleSchema.parse(req.body);
+        const updateData = {};
+        if (validated.name !== undefined)
+            updateData.name = validated.name;
+        if (validated.regex !== undefined)
+            updateData.regex = validated.regex;
+        if (validated.keywords !== undefined)
+            updateData.keywords = JSON.stringify(validated.keywords);
+        if (validated.solution !== undefined)
+            updateData.solution = validated.solution;
+        if (validated.severity !== undefined)
+            updateData.severity = validated.severity;
+        if (validated.weight !== undefined)
+            updateData.weight = validated.weight;
+        if (validated.categories !== undefined)
+            updateData.categories = validated.categories ? JSON.stringify(validated.categories) : null;
+        const rule = await database_1.default.rule.update({
+            where: { id: ruleId },
+            data: updateData
+        });
+        res.json({
+            code: 0,
+            message: 'success',
+            data: {
+                id: rule.id,
+                name: rule.name,
+                regex: rule.regex,
+                keywords: JSON.parse(rule.keywords),
+                solution: rule.solution,
+                severity: rule.severity,
+                weight: rule.weight,
+                categories: rule.categories ? JSON.parse(rule.categories) : [],
+                enabled: rule.enabled,
+                version: rule.version,
+                createdAt: rule.createdAt.toISOString(),
+                updatedAt: rule.updatedAt.toISOString()
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        logger_1.logger.error('Failed to update rule', { error: error instanceof Error ? error.message : String(error) });
+        throw error;
+    }
 }
 async function deleteRule(req, res) {
-    res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
+    try {
+        const ruleId = String(req.params.ruleId);
+        await database_1.default.rule.delete({ where: { id: ruleId } });
+        res.json({
+            code: 0,
+            message: 'success',
+            data: null,
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        logger_1.logger.error('Failed to delete rule', { error: error instanceof Error ? error.message : String(error) });
+        throw error;
+    }
 }
 async function batchDeleteRules(req, res) {
     res.status(501).json({ code: 501, message: 'Not Implemented', data: null });
