@@ -1,5 +1,0 @@
-{
-  "devDependencies": {
-    "@types/istanbul-lib-coverage": "^2.0.6"
-  }
-}
