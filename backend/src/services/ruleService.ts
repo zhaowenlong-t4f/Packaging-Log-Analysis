@@ -212,20 +212,33 @@ export async function updateRule(id: string, input: UpdateRuleInput): Promise<Ru
 
     // 如果版本号增加，保存历史版本
     if (hasVersionChange) {
-      await tx.ruleHistory.create({
-        data: {
-          ruleId: rule.id,
-          version: existing.version,
-          name: existing.name,
-          regex: existing.regex,
-          keywords: existing.keywords,
-          solution: existing.solution,
-          severity: existing.severity,
-          weight: existing.weight,
-          categories: existing.categories,
-          changeLog: 'Rule updated',
+      // 检查该版本的历史记录是否已存在
+      const existingHistory = await tx.ruleHistory.findUnique({
+        where: {
+          ruleId_version: {
+            ruleId: rule.id,
+            version: existing.version,
+          },
         },
       });
+
+      // 如果不存在，才创建历史记录
+      if (!existingHistory) {
+        await tx.ruleHistory.create({
+          data: {
+            ruleId: rule.id,
+            version: existing.version,
+            name: existing.name,
+            regex: existing.regex,
+            keywords: existing.keywords,
+            solution: existing.solution,
+            severity: existing.severity,
+            weight: existing.weight,
+            categories: existing.categories,
+            changeLog: 'Rule updated',
+          },
+        });
+      }
     }
 
     return rule;
@@ -338,21 +351,32 @@ export async function rollbackRule(ruleId: string, version: number): Promise<Rul
 
   // 回滚规则
   const rolledBack = await prisma.$transaction(async (tx) => {
-    // 保存当前版本到历史
-    await tx.ruleHistory.create({
-      data: {
-        ruleId: current.id,
-        version: current.version,
-        name: current.name,
-        regex: current.regex,
-        keywords: current.keywords,
-        solution: current.solution,
-        severity: current.severity,
-        weight: current.weight,
-        categories: current.categories,
-        changeLog: `Rolled back to version ${version}`,
+    // 保存当前版本到历史（如果不存在）
+    const existingHistory = await tx.ruleHistory.findUnique({
+      where: {
+        ruleId_version: {
+          ruleId: current.id,
+          version: current.version,
+        },
       },
     });
+
+    if (!existingHistory) {
+      await tx.ruleHistory.create({
+        data: {
+          ruleId: current.id,
+          version: current.version,
+          name: current.name,
+          regex: current.regex,
+          keywords: current.keywords,
+          solution: current.solution,
+          severity: current.severity,
+          weight: current.weight,
+          categories: current.categories,
+          changeLog: `Rolled back to version ${version}`,
+        },
+      });
+    }
 
     // 恢复历史版本
     const rule = await tx.rule.update({
