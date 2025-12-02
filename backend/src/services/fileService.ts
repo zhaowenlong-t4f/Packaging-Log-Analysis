@@ -47,6 +47,8 @@ export async function getLogContent(
         throw new Error('Invalid Base64 string');
       }
       logger.info('Decoding log from Base64');
+      // 如果已经是纯 Base64（没有 data URL 前缀），直接使用
+      // 如果有 data URL 前缀，decodeBase64File 会处理
       return decodeBase64File(content);
     }
 

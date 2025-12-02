@@ -18,7 +18,6 @@ import {
 } from '../services/ruleService';
 import { sendSuccess, sendError } from '../utils/response';
 import { RuleQueryParams, CreateRuleInput, ConflictStrategy } from '../types/rule.types';
-import { NotFoundError } from '../middleware/errorHandler';
 import { processLogFile } from '../services/fileService';
 import { loadAndCompileRules, CompiledRule } from '../services/analysisService';
 
@@ -34,7 +33,7 @@ export async function getRules(req: Request, res: Response, next: NextFunction):
       sortOrder: req.query.sortOrder as any,
       searchKeyword: req.query.searchKeyword as string,
       categoryFilter: Array.isArray(req.query.categoryFilter)
-        ? req.query.categoryFilter
+        ? (req.query.categoryFilter as string[])
         : req.query.categoryFilter
         ? [req.query.categoryFilter as string]
         : undefined,
@@ -244,7 +243,7 @@ export async function importRulesHandler(req: Request, res: Response, next: Next
  */
 export async function validateRulesHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { ruleIds, uploadType, content, fileName } = req.body;
+    const { ruleIds, uploadType, content } = req.body;
 
     if (!Array.isArray(ruleIds) || ruleIds.length === 0) {
       return sendError(res, 'ruleIds must be a non-empty array', 400);

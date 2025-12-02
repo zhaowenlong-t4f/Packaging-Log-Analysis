@@ -1,0 +1,64 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* 主色系 */
+  --primary-blue: #1890ff;
+  --primary-green: #52c41a;
+  --primary-red: #ff4d4f;
+  --primary-orange: #faad14;
+  --primary-gray: #8c8c8c;
+
+  /* 严重程度色彩 */
+  --severity-critical: #ff4d4f;
+  --severity-error: #ff7a45;
+  --severity-warning: #faad14;
+  --severity-info: #1890ff;
+
+  /* 背景色 */
+  --bg-light: #fafafa;
+  --bg-white: #ffffff;
+  --bg-dark: #262626;
+
+  /* 间距系统（基础单位 8px） */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+
+  /* 圆角 */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+
+  /* 阴影 */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 9px 28px rgba(0, 0, 0, 0.15);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #262626;
+  background-color: var(--bg-light);
+}
+
+code {
+  font-family: 'Courier New', Courier, monospace;
+}
+
+#root {
+  min-height: 100vh;
+}
+

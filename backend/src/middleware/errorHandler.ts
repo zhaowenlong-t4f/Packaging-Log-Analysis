@@ -56,12 +56,12 @@ export class ConflictError extends AppError {
  */
 export function errorHandler(
   error: Error,
-  req: Request,
+  _req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void {
   // 生成或获取追踪 ID
-  const traceId = (req.headers['x-request-id'] as string) || generateTraceId();
+  const traceId = (_req.headers['x-request-id'] as string) || generateTraceId();
   res.locals.traceId = traceId;
 
   // 记录错误日志
@@ -69,8 +69,8 @@ export function errorHandler(
     traceId,
     message: error.message,
     stack: error.stack,
-    path: req.path,
-    method: req.method,
+    path: _req.path,
+    method: _req.method,
   });
 
   // Zod 验证错误

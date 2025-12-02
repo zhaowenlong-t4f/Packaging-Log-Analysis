@@ -33,7 +33,7 @@ export function sendError(
   res: Response,
   message: string,
   code: number = 500,
-  data: unknown = null
+  data: null = null
 ): void {
   const traceId = (res.locals.traceId as string) || generateTraceId();
   const response: ErrorResponse = {

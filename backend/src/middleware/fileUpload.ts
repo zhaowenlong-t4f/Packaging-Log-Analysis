@@ -19,7 +19,7 @@ export const upload = multer({
   limits: {
     fileSize: maxFileSize,
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, _file, cb) => {
     // 允许所有文件类型（日志文件可能是各种格式）
     cb(null, true);
   },
@@ -30,7 +30,7 @@ export const upload = multer({
  */
 export function fileUploadErrorHandler(
   error: Error,
-  req: Request,
+  _req: Request,
   res: Response,
   next: NextFunction
 ): void {

@@ -8,7 +8,6 @@ import { regexMatch, compileRegex } from '../utils/regexMatcher';
 import { cache } from '../utils/cache';
 import { RULE_CACHE_TTL, DEFAULT_CONTEXT_SIZE, SEVERITY_ORDER } from '../config/constants';
 import { ContextLines, ContextLine } from '../types/log.types';
-import { Rule } from '../types/rule.types';
 import { safeJsonParse } from '../utils/formatters';
 
 const prisma = new PrismaClient();
@@ -95,30 +94,32 @@ export async function loadAndCompileRules(): Promise<CompiledRule[]> {
     where: { enabled: true },
   });
 
-  const compiledRules: CompiledRule[] = rules.map((rule) => {
-    try {
-      const keywords = safeJsonParse<string[]>(rule.keywords, []);
-      const regex = compileRegex(rule.regex);
+  const compiledRules = rules
+    .map((rule) => {
+      try {
+        const keywords = safeJsonParse<string[]>(rule.keywords, []);
+        const regex = compileRegex(rule.regex);
 
-      return {
-        id: rule.id,
-        name: rule.name,
-        regex,
-        keywords,
-        severity: rule.severity,
-        weight: rule.weight,
-        solution: rule.solution || undefined,
-        errorType: rule.name, // 使用规则名称作为错误类型
-      };
-    } catch (error) {
-      logger.error('Failed to compile rule', {
-        ruleId: rule.id,
-        ruleName: rule.name,
-        error,
-      });
-      return null;
-    }
-  }).filter((rule): rule is CompiledRule => rule !== null);
+        return {
+          id: rule.id,
+          name: rule.name,
+          regex,
+          keywords,
+          severity: rule.severity,
+          weight: rule.weight,
+          solution: rule.solution || undefined,
+          errorType: rule.name, // 使用规则名称作为错误类型
+        } as CompiledRule;
+      } catch (error) {
+        logger.error('Failed to compile rule', {
+          ruleId: rule.id,
+          ruleName: rule.name,
+          error,
+        });
+        return null;
+      }
+    })
+    .filter((rule): rule is CompiledRule => rule !== null);
 
   // 缓存编译后的规则
   cache.set(cacheKey, compiledRules, RULE_CACHE_TTL);
@@ -173,7 +174,7 @@ function matchLogLines(lines: string[], compiledRules: CompiledRule[]): MatchRec
  */
 function aggregateErrors(
   matches: MatchRecord[],
-  compiledRules: Map<string, CompiledRule>
+  _compiledRules: Map<string, CompiledRule>
 ): Map<string, {
   ruleId: string;
   errorLine: string;
@@ -212,16 +213,16 @@ function aggregateErrors(
 /**
  * 排序错误（按严重程度、权重、出现次数）
  */
-function sortErrors(
-  errors: Array<{
-    ruleId: string;
-    errorLine: string;
-    occurrences: Array<{ lineNumber: number; rawLine: string }>;
-    severity: string;
-    weight: number;
-  }>
-): typeof errors {
+function sortErrors<T extends { severity: string; occurrenceCount: number; ruleId: string }>(
+  errors: T[],
+  rulesMap: Map<string, CompiledRule>
+): T[] {
   return errors.sort((a, b) => {
+    const ruleA = rulesMap.get(a.ruleId);
+    const ruleB = rulesMap.get(b.ruleId);
+    const weightA = ruleA?.weight || 50;
+    const weightB = ruleB?.weight || 50;
+
     // 1. 按严重程度排序
     const severityOrderA = SEVERITY_ORDER[a.severity] ?? 999;
     const severityOrderB = SEVERITY_ORDER[b.severity] ?? 999;
@@ -230,12 +231,12 @@ function sortErrors(
     }
 
     // 2. 按权重排序
-    if (a.weight !== b.weight) {
-      return b.weight - a.weight;
+    if (weightA !== weightB) {
+      return weightB - weightA;
     }
 
     // 3. 按出现次数排序
-    return b.occurrences.length - a.occurrences.length;
+    return b.occurrenceCount - a.occurrenceCount;
   });
 }
 
@@ -298,24 +299,24 @@ export async function analyzeLog(lines: string[]): Promise<{
   });
 
   // 5. 排序
-  const sortedErrors = sortErrors(errors);
+  const sortedErrors = sortErrors(errors, rulesMap);
 
   // 6. 统计
-  const errorCount = sortedErrors.filter((e) => e.severity === 'CRITICAL' || e.severity === 'ERROR').length;
+  const criticalErrorCount = sortedErrors.filter((e) => e.severity === 'CRITICAL' || e.severity === 'ERROR').length;
   const warningCount = sortedErrors.filter((e) => e.severity === 'WARNING').length;
 
   const duration = Date.now() - startTime;
   logger.info('Log analysis completed', {
     duration,
     lineCount: lines.length,
-    errorCount: sortedErrors.length,
-    errorCount,
+    totalErrorCount: sortedErrors.length,
+    errorCount: criticalErrorCount,
     warningCount,
   });
 
   return {
     errors: sortedErrors,
-    errorCount,
+    errorCount: criticalErrorCount,
     warningCount,
   };
 }

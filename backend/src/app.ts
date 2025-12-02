@@ -36,7 +36,7 @@ export function createApp(): Express {
   });
 
   // 健康检查端点
-  app.get('/health', (req, res) => {
+  app.get('/health', (_req, res) => {
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -48,7 +48,7 @@ export function createApp(): Express {
   app.use(routes);
 
   // 404 处理
-  app.use((req, res) => {
+  app.use((_req, res) => {
     res.status(404).json({
       code: 404,
       message: 'Not Found',

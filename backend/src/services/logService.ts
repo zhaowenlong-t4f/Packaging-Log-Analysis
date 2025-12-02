@@ -3,13 +3,13 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { LogUploadRequest, LogQueryParams, LogDetailQueryParams } from '../types/log.types';
+import { LogUploadRequest, LogDetailQueryParams } from '../types/log.types';
 import { processLogFile, saveRawContent } from './fileService';
 import { analyzeLog } from './analysisService';
 import { calculatePagination, formatDate } from '../utils/formatters';
 import { logger } from '../utils/logger';
 import { NotFoundError } from '../middleware/errorHandler';
-import { extractContext } from './analysisService';
+import { getRuleById } from './ruleService';
 
 const prisma = new PrismaClient();
 
@@ -67,6 +67,15 @@ export async function uploadAndAnalyzeLog(request: LogUploadRequest): Promise<{
   // 5. 保存错误和出现记录
   const errorRecords = [];
   for (const error of analysisResult.errors) {
+    // 获取规则的 weight
+    let weight = 50;
+    try {
+      const rule = await getRuleById(error.ruleId);
+      weight = rule.weight;
+    } catch {
+      // 如果规则不存在，使用默认值
+    }
+
     // 创建错误记录
     const errorRecord = await prisma.error.create({
       data: {
@@ -104,7 +113,7 @@ export async function uploadAndAnalyzeLog(request: LogUploadRequest): Promise<{
       type: error.errorType,
       severity: error.severity,
       count: error.occurrenceCount,
-      weight: error.weight || 50,
+      weight,
       firstOccurrenceLine: error.firstOccurrenceLine,
       lastOccurrenceLine: error.lastOccurrenceLine,
       description: error.description,

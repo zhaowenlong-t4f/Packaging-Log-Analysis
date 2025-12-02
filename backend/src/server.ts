@@ -7,10 +7,11 @@ import { env } from './config/env';
 
 const app = createApp();
 
-const server = app.listen(env.port, () => {
-  console.log(`🚀 Server is running on http://localhost:${env.port}`);
+const server = app.listen(env.port, '0.0.0.0', () => {
+  console.log(`🚀 Server is running on http://0.0.0.0:${env.port}`);
   console.log(`📝 Environment: ${env.nodeEnv}`);
   console.log(`💾 Database: ${env.databaseUrl}`);
+  console.log(`🌐 Access from network: http://<your-ip>:${env.port}`);
 });
 
 // 优雅关闭

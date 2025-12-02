@@ -17,7 +17,6 @@ import { logger } from '../utils/logger';
 import { NotFoundError, ConflictError, ValidationError } from '../middleware/errorHandler';
 import { validateRegex } from '../utils/validators';
 import { cache } from '../utils/cache';
-import { RULE_CACHE_TTL } from '../config/constants';
 import { clearRuleCache } from './analysisService';
 
 const prisma = new PrismaClient();

@@ -44,7 +44,7 @@ export function detectEncoding(buffer: Buffer): string {
 /**
  * 转换字符编码
  */
-export function convertEncoding(buffer: Buffer, fromEncoding: string, toEncoding: string = 'utf-8'): string {
+export function convertEncoding(buffer: Buffer, fromEncoding: string, _toEncoding: string = 'utf-8'): string {
   try {
     // Node.js 原生支持的编码转换
     if (fromEncoding === 'utf-8' || fromEncoding === 'utf8') {

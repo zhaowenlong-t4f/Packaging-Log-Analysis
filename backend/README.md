@@ -324,6 +324,56 @@ cp ./backups/app-20251201-100000.db ./data/app.db
 }
 ```
 
+## 一键部署
+
+### 使用 PowerShell 脚本（推荐）
+
+```powershell
+# 完整部署（安装依赖 + 构建 + 启动）
+.\deploy.ps1
+
+# 跳过依赖安装
+.\deploy.ps1 -SkipInstall
+
+# 跳过构建（仅启动）
+.\deploy.ps1 -SkipBuild
+
+# 生产模式
+.\deploy.ps1 -Production
+
+# 组合使用
+.\deploy.ps1 -SkipInstall -Production
+```
+
+### 使用批处理脚本
+
+直接双击 `deploy.bat` 文件，或在命令行运行：
+
+```cmd
+deploy.bat
+```
+
+### 手动部署
+
+如果脚本无法运行，可以手动执行以下步骤：
+
+```bash
+# 1. 安装依赖
+npm install
+
+# 2. 生成 Prisma Client
+npm run prisma:generate
+
+# 3. 构建项目
+npm run build
+
+# 4. 启动服务（开发模式）
+npm run dev
+
+# 或启动服务（生产模式）
+npm start
+```
+
 ## 部署
 
 ### Docker 部署
