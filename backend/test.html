@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后端API测试工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-bottom: 20px; }
+        .config {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .config input {
+            width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .section {
+            margin-bottom: 30px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+        }
+        .section h2 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-size: 14px;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        textarea {
+            min-height: 100px;
+            font-family: monospace;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .response {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        .response h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .response pre {
+            background: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error { border-left-color: #dc3545; }
+        .success { border-left-color: #28a745; }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 后端API测试工具</h1>
+        
+        <!-- 配置 -->
+        <div class="config">
+            <label>API基础地址：</label>
+            <input type="text" id="baseUrl" value="http://localhost:3000/api/v1" placeholder="http://localhost:3000/api/v1">
+        </div>
+
+        <!-- 健康检查 -->
+        <div class="section">
+            <h2>1. 健康检查</h2>
+            <button onclick="testHealth()">测试健康检查</button>
+            <div id="healthResponse"></div>
+        </div>
+
+        <!-- 日志分析 -->
+        <div class="section">
+            <h2>2. 日志分析</h2>
+            <div class="form-group">
+                <label>上传类型：</label>
+                <select id="uploadType">
+                    <option value="text">文本 (text)</option>
+                    <option value="url">URL (url)</option>
+                    <option value="file">文件 (file)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>日志内容：</label>
+                <textarea id="logContent" placeholder='输入日志内容，例如：\nError: Build failed\nWarning: Deprecated API'>Error: Build failed
+Warning: Deprecated API usage
+Info: Compilation started</textarea>
+            </div>
+            <div class="form-group">
+                <label>文件名：</label>
+                <input type="text" id="fileName" value="test.log">
+            </div>
+            <div class="form-group">
+                <label>元数据（JSON）：</label>
+                <textarea id="metadata" placeholder='{"projectName": "ProjectX", "buildVersion": "1.0.0", "platform": "Android"}'>{}</textarea>
+            </div>
+            <button onclick="testAnalyzeLog()">上传并分析日志</button>
+            <div id="analyzeResponse"></div>
+        </div>
+
+        <!-- 获取分析详情 -->
+        <div class="section">
+            <h2>3. 获取分析详情</h2>
+            <div class="form-group">
+                <label>分析ID：</label>
+                <input type="text" id="analysisId" placeholder="从上面的分析结果中获取">
+            </div>
+            <div class="grid">
+                <div class="form-group">
+                    <label>页码：</label>
+                    <input type="number" id="pageNo" value="1" min="1">
+                </div>
+                <div class="form-group">
+                    <label>每页数量：</label>
+                    <input type="number" id="pageSize" value="20" min="1" max="100">
+                </div>
+            </div>
+            <button onclick="testGetLogDetails()">获取详情</button>
+            <div id="logDetailsResponse"></div>
+        </div>
+
+        <!-- 规则管理 -->
+        <div class="section">
+            <h2>4. 规则管理</h2>
+            
+            <h3 style="margin-top: 15px; margin-bottom: 10px;">4.1 获取规则列表</h3>
+            <div class="grid">
+                <div class="form-group">
+                    <label>页码：</label>
+                    <input type="number" id="rulePageNo" value="1" min="1">
+                </div>
+                <div class="form-group">
+                    <label>每页数量：</label>
+                    <input type="number" id="rulePageSize" value="20" min="1" max="100">
+                </div>
+            </div>
+            <button onclick="testGetRules()">获取规则列表</button>
+            <div id="rulesResponse"></div>
+
+            <h3 style="margin-top: 20px; margin-bottom: 10px;">4.2 创建规则</h3>
+            <div class="form-group">
+                <label>规则名称：</label>
+                <input type="text" id="ruleName" value="测试规则">
+            </div>
+            <div class="form-group">
+                <label>正则表达式：</label>
+                <input type="text" id="ruleRegex" value="error.*">
+            </div>
+            <div class="form-group">
+                <label>关键词（JSON数组）：</label>
+                <input type="text" id="ruleKeywords" value='["error"]'>
+            </div>
+            <div class="form-group">
+                <label>解决方案（Markdown）：</label>
+                <textarea id="ruleSolution">检查错误日志并修复问题</textarea>
+            </div>
+            <div class="grid">
+                <div class="form-group">
+                    <label>严重程度：</label>
+                    <select id="ruleSeverity">
+                        <option value="ERROR">ERROR</option>
+                        <option value="WARNING">WARNING</option>
+                        <option value="INFO">INFO</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>权重：</label>
+                    <input type="number" id="ruleWeight" value="50" min="0" max="100">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>分类（JSON数组）：</label>
+                <input type="text" id="ruleCategories" value='["compilation"]'>
+            </div>
+            <button onclick="testCreateRule()">创建规则</button>
+            <div id="createRuleResponse"></div>
+
+            <h3 style="margin-top: 20px; margin-bottom: 10px;">4.3 获取单个规则</h3>
+            <div class="form-group">
+                <label>规则ID：</label>
+                <input type="text" id="getRuleId" placeholder="从规则列表中获取">
+            </div>
+            <button onclick="testGetRule()">获取规则</button>
+            <div id="getRuleResponse"></div>
+
+            <h3 style="margin-top: 20px; margin-bottom: 10px;">4.4 更新规则</h3>
+            <div class="form-group">
+                <label>规则ID：</label>
+                <input type="text" id="updateRuleId" placeholder="要更新的规则ID">
+            </div>
+            <div class="form-group">
+                <label>新规则名称：</label>
+                <input type="text" id="updateRuleName" value="更新后的规则">
+            </div>
+            <button onclick="testUpdateRule()">更新规则</button>
+            <div id="updateRuleResponse"></div>
+
+            <h3 style="margin-top: 20px; margin-bottom: 10px;">4.5 删除规则</h3>
+            <div class="form-group">
+                <label>规则ID：</label>
+                <input type="text" id="deleteRuleId" placeholder="要删除的规则ID">
+            </div>
+            <button onclick="testDeleteRule()">删除规则</button>
+            <div id="deleteRuleResponse"></div>
+        </div>
+    </div>
+
+    <script>
+        const baseUrl = () => document.getElementById('baseUrl').value;
+
+        async function apiCall(method, url, body = null) {
+            const options = {
+                method,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (body) options.body = JSON.stringify(body);
+            
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+                return { status: response.status, data };
+            } catch (error) {
+                return { status: 0, data: { error: error.message } };
+            }
+        }
+
+        function showResponse(elementId, status, data) {
+            const el = document.getElementById(elementId);
+            const isSuccess = status >= 200 && status < 300;
+            el.className = `response ${isSuccess ? 'success' : 'error'}`;
+            el.innerHTML = `
+                <h3>响应 (状态码: ${status})</h3>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+        }
+
+        // 1. 健康检查
+        async function testHealth() {
+            const response = await fetch(`${baseUrl().replace('/api/v1', '')}/health`);
+            const data = await response.json();
+            showResponse('healthResponse', response.status, data);
+        }
+
+        // 2. 分析日志
+        async function testAnalyzeLog() {
+            let metadata = {};
+            try {
+                metadata = JSON.parse(document.getElementById('metadata').value || '{}');
+            } catch (e) {
+                alert('元数据JSON格式错误');
+                return;
+            }
+
+            const body = {
+                uploadType: document.getElementById('uploadType').value,
+                content: document.getElementById('logContent').value,
+                fileName: document.getElementById('fileName').value,
+                metadata
+            };
+
+            const { status, data } = await apiCall('POST', `${baseUrl()}/logs/analyze`, body);
+            showResponse('analyzeResponse', status, data);
+            
+            // 自动填充分析ID
+            if (data.data && data.data.analysisId) {
+                document.getElementById('analysisId').value = data.data.analysisId;
+            }
+        }
+
+        // 3. 获取分析详情
+        async function testGetLogDetails() {
+            const analysisId = document.getElementById('analysisId').value;
+            if (!analysisId) {
+                alert('请输入分析ID');
+                return;
+            }
+
+            const params = new URLSearchParams({
+                pageNo: document.getElementById('pageNo').value,
+                pageSize: document.getElementById('pageSize').value
+            });
+
+            const { status, data } = await apiCall('GET', `${baseUrl()}/logs/${analysisId}/details?${params}`);
+            showResponse('logDetailsResponse', status, data);
+        }
+
+        // 4.1 获取规则列表
+        async function testGetRules() {
+            const params = new URLSearchParams({
+                pageNo: document.getElementById('rulePageNo').value,
+                pageSize: document.getElementById('rulePageSize').value
+            });
+
+            const { status, data } = await apiCall('GET', `${baseUrl()}/rules?${params}`);
+            showResponse('rulesResponse', status, data);
+        }
+
+        // 4.2 创建规则
+        async function testCreateRule() {
+            let keywords = [], categories = [];
+            try {
+                keywords = JSON.parse(document.getElementById('ruleKeywords').value || '[]');
+                categories = JSON.parse(document.getElementById('ruleCategories').value || '[]');
+            } catch (e) {
+                alert('关键词或分类JSON格式错误');
+                return;
+            }
+
+            const body = {
+                name: document.getElementById('ruleName').value,
+                regex: document.getElementById('ruleRegex').value,
+                keywords,
+                solution: document.getElementById('ruleSolution').value,
+                severity: document.getElementById('ruleSeverity').value,
+                weight: parseInt(document.getElementById('ruleWeight').value),
+                categories
+            };
+
+            const { status, data } = await apiCall('POST', `${baseUrl()}/rules`, body);
+            showResponse('createRuleResponse', status, data);
+            
+            // 自动填充规则ID
+            if (data.data && data.data.id) {
+                document.getElementById('getRuleId').value = data.data.id;
+                document.getElementById('updateRuleId').value = data.data.id;
+            }
+        }
+
+        // 4.3 获取单个规则
+        async function testGetRule() {
+            const ruleId = document.getElementById('getRuleId').value;
+            if (!ruleId) {
+                alert('请输入规则ID');
+                return;
+            }
+
+            const { status, data } = await apiCall('GET', `${baseUrl()}/rules/${ruleId}`);
+            showResponse('getRuleResponse', status, data);
+        }
+
+        // 4.4 更新规则
+        async function testUpdateRule() {
+            const ruleId = document.getElementById('updateRuleId').value;
+            if (!ruleId) {
+                alert('请输入规则ID');
+                return;
+            }
+
+            const body = {
+                name: document.getElementById('updateRuleName').value
+            };
+
+            const { status, data } = await apiCall('PUT', `${baseUrl()}/rules/${ruleId}`, body);
+            showResponse('updateRuleResponse', status, data);
+        }
+
+        // 4.5 删除规则
+        async function testDeleteRule() {
+            const ruleId = document.getElementById('deleteRuleId').value;
+            if (!ruleId) {
+                alert('请输入规则ID');
+                return;
+            }
+
+            if (!confirm(`确定要删除规则 ${ruleId} 吗？`)) {
+                return;
+            }
+
+            const { status, data } = await apiCall('DELETE', `${baseUrl()}/rules/${ruleId}`);
+            showResponse('deleteRuleResponse', status, data);
+        }
+    </script>
+</body>
+</html>
+
