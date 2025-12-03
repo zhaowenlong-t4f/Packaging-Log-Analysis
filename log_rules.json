@@ -148,21 +148,6 @@
     "updatedAt": "2025-11-24 06:18:55"
   },
   {
-    "id": "6",
-    "name": "构建过程失败",
-    "regex": "Build (failed|Failed) (.*)",
-    "keywords": [
-      "Build",
-      "failed",
-      "Failed"
-    ],
-    "solution": "**构建失败**\n\n构建流水线报告了失败状态。请向上滚动查看具体的编译错误或资源处理错误。",
-    "severity": "CRITICAL",
-    "weight": 5,
-    "createdAt": "2025-11-24 06:18:55",
-    "updatedAt": "2025-11-24 06:24:21"
-  },
-  {
     "id": "4",
     "name": "资源导入失败",
     "regex": "Could not create asset from (.*?) file path: (.*)",
@@ -195,19 +180,6 @@
     "updatedAt": "2025-11-24 06:24:57"
   },
   {
-    "id": "5",
-    "name": "通用异常 (Exception)",
-    "regex": "(.*Exception): (.*)",
-    "keywords": [
-      "Exception"
-    ],
-    "solution": "**检测到未处理的异常**\n\n这是一个通用的异常捕获。\n1. 查看堆栈跟踪以确定引发异常的具体代码行。\n2. 检查空引用 (NullReferenceException) 或数组越界。",
-    "severity": "ERROR",
-    "weight": 2,
-    "createdAt": "2025-11-24 06:18:55",
-    "updatedAt": "2025-11-24 06:18:55"
-  },
-  {
     "id": "7",
     "name": "通用失败 (Generic Failure)",
     "regex": ".*(Failed|failed).*",
@@ -220,5 +192,26 @@
     "weight": 1,
     "createdAt": "2025-11-24 06:18:55",
     "updatedAt": "2025-11-24 06:18:55"
+  },
+  {
+    "id": "jenkins-remoting-channel-disconnected",
+    "name": "Jenkins Windows Agent 连接断开（Remoting Channel 丢失）",
+    "regex": "(java\\.io\\.EOFException.*ObjectInputStream|Unexpected termination of the channel|Backing channel .* is disconnected\\.\\.|ChannelClosedException:.*Remote call.*failed\\. The channel is closing down|Unable to delete script file.*\\.sh.*hudson\\.remoting)",
+    "keywords": [
+      "EOFException",
+      "Unexpected termination of the channel",
+      "Backing channel",
+      "is disconnected",
+      "ChannelClosedException",
+      "Remote call",
+      "closing down",
+      "Unable to delete script file",
+      "hudson.remoting"
+    ],
+    "solution": "**Jenkins Windows Agent 与 Master 连接断开（Remoting Channel 丢失）**\n\n这是 Unity 打包最常见、最隐蔽的致命错误之一，通常发生在打包进行到一半（尤其是资源导入或生成阶段）时 Master 与 Windows Agent 之间的 TCP 长连接突然中断。\n\n**典型表现：**\n- 构建日志中出现 `java.io.EOFException` + `Unexpected termination of the channel`\n- 最后几行提示 `Unable to delete script file ...jenkinsxxxx.sh`\n- 最终构建状态为 FAILED，但看不出具体 Unity 错误\n\n**根本原因（90% 概率）：**\n1. Unity 打包内存占用过高 → java.exe (Agent) 被 Windows OOM Killer 或杀毒软件杀死\n2. Jenkins remoting.jar 版本过旧（< 4.13）在 Windows 上长连接不稳定\n3. 长时间无日志输出导致连接被防火墙/网络空闲超时断开\n\n**立即生效的修复方案（任选其一即可大幅降低概率）：**\n**【强烈推荐组合拳】**\n1. 升级 Agent 的 `remoting.jar` 到最新版（≥ 5.x）：\n   https://repo.jenkins-ci.org/public/org/jenkins-ci/main/remoting/\n2. 重启 Agent 时加上关键参数（防止空闲断连）：\n   ```bat\n   java -Dhudson.remoting.Launcher.pingInterval=300 -jar remoting.jar -jnlpUrl ... -secret ...\n   ```\n3. 给 Windows 打包机至少 32GB 可用内存 + 关闭杀毒软件实时监控 java.exe\n4. （可选但效果极佳）改用 SSH Windows Agent（OpenSSH）代替 JNLP 方式\n\n做完以上任一项，基本杜绝此问题再次出现。",
+    "severity": "CRITICAL",
+    "weight": 200,
+    "createdAt": "2025-12-03 10:30:00",
+    "updatedAt": "2025-12-03 10:30:00"
   }
 ]
