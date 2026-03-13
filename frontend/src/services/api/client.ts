@@ -52,6 +52,16 @@ client.interceptors.response.use(
   (response) => {
     const data = response.data as ApiResponse;
 
+    // 文件下载等二进制响应不走业务码校验
+    if (response.config?.responseType === 'blob' || response.config?.responseType === 'arraybuffer') {
+      return response;
+    }
+
+    // 非标准业务响应（无 code 字段）直接透传
+    if (!data || typeof data !== 'object' || !('code' in data)) {
+      return response;
+    }
+
     // 检查业务状态码
     if (data.code !== 0) {
       // 业务错误
